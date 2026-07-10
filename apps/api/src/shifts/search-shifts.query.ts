@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ShiftStatus, type Prisma } from "@prisma/client";
 import { TenantContextService } from "../organizations/tenant-context";
 
@@ -114,5 +114,23 @@ export class SearchShiftsQuery {
 
       return { items, page, pageSize, total };
     });
+  }
+
+  /**
+   * Detalhe de um único plantão PUBLICADO, para a tela de
+   * candidatura. Mesma regra de visibilidade da busca: nunca
+   * DRAFT/FILLED/CANCELLED nem de outro tenant.
+   */
+  async getPublishedById(organizationId: string, shiftId: string) {
+    const shift = await this.tenantContext.withTenantScope(organizationId, (tx) =>
+      tx.shift.findFirst({
+        where: { id: shiftId, organizationId, status: ShiftStatus.PUBLISHED },
+        select: { id: true, specialty: true, valueCents: true, startsAt: true, endsAt: true },
+      }),
+    );
+    if (!shift) {
+      throw new NotFoundException("Plantão não encontrado");
+    }
+    return shift;
   }
 }

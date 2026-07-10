@@ -40,6 +40,12 @@ export class ShiftsController {
     });
   }
 
+  @Get(":id")
+  @Roles(UserRole.DOCTOR, UserRole.HOSPITAL_ADMIN)
+  async getById(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+    return this.searchShifts.getPublishedById(organizationId, id);
+  }
+
   @Post()
   async draft(@CurrentUser() actor: AuthenticatedUser, @Body() body: DraftShiftInput) {
     return this.shiftCommands.draftShift(actor, body);

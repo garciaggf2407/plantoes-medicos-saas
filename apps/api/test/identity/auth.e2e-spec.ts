@@ -8,7 +8,10 @@ import { FakeOidcProvider } from "../../src/identity/providers/fake-oidc.provide
 
 process.env.SESSION_SECRET ??= "test-only-session-secret-32-characters";
 process.env.OIDC_ISSUER_URL = "";
-process.env.COOKIE_SECURE ??= "true";
+// Forçado (não ??=): este teste afirma o atributo Secure do cookie,
+// então não pode depender do COOKIE_SECURE=false do .env de dev local
+// (usado para testar no navegador sem HTTPS) — ver vitest.config.ts.
+process.env.COOKIE_SECURE = "true";
 process.env.DATABASE_URL ??=
   "postgresql://plantoes_app:plantoes_app_dev_local@localhost:5432/plantoes_medicos?schema=public";
 
