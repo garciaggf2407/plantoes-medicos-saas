@@ -16,16 +16,23 @@
     "@nestjs/platform-express": "^11.1.28",
     "@plantoes/shared": "workspace:*",
     "@prisma/client": "^6.2.1",
+    "cookie-parser": "^1.4.7",
+    "jose": "^5.9.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
     "@nestjs/testing": "^11.1.28",
+    "@swc/core": "^1.9.3",
+    "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "@types/supertest": "^6.0.2",
     "prisma": "^6.2.1",
+    "supertest": "^7.0.0",
     "typescript": "^5.7.2",
+    "unplugin-swc": "^1.5.1",
     "vitest": "^3.0.0"
   }
 }
