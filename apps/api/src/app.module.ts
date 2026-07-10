@@ -6,11 +6,12 @@ import { AuthModule } from "./identity/auth.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { CredentialsModule } from "./credentials/credentials.module";
+import { ShiftsModule } from "./shifts/shifts.module";
 import { AuthenticationGuard } from "./identity/guards/authentication.guard";
 import { AuthorizationGuard } from "./identity/authorization.guard";
 
 @Module({
-  imports: [PrismaModule, OrganizationsModule, AuthModule, CredentialsModule],
+  imports: [PrismaModule, OrganizationsModule, AuthModule, CredentialsModule, ShiftsModule],
   controllers: [AppController],
   providers: [
     AppService,
