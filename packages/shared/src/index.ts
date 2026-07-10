@@ -18,3 +18,14 @@ export interface SearchShiftsResponse {
   pageSize: number;
   total: number;
 }
+
+export interface CalendarEventDto {
+  shiftId: string;
+  specialty: string;
+  valueCents: number;
+  startsAt: string;
+  endsAt: string;
+  organizationId: string;
+  organizationName: string;
+  timezone: string;
+}
