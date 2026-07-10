@@ -19,13 +19,15 @@
 | Epic | Status | Tasks Done |
 |------|--------|------------|
 | E-1 Fundação | APPROVED (CP-1, condicional — CI ainda não verificada) | 7/7 |
-| E-2 Domínio core | DONE (pending CP-2 approval) | 5/5 |
-| E-3 Portal do Médico | TODO | 0/5 |
+| E-2 Domínio core | APPROVED (CP-2) | 5/5 |
+| E-3 Portal do Médico | DONE (pending CP-3 approval) | 5/5 |
 | E-4 Portal do Administrador | TODO | 0/4 |
 | E-5 Notificações e qualidade | TODO | 0/9 |
 
 ## Current
-- Epic: E-2 complete
-- Checkpoint: CP-2 awaiting operator approval
-- Tests: 78/78 passing (apps/api), full workspace build green
-- Após CP-2: E-3 e E-4 podem rodar em paralelo (ambas dependem só de E-2)
+- Epic: E-3 complete
+- Checkpoint: CP-3 awaiting operator approval
+- Tests: 94/94 passing (apps/api), full workspace build green
+- Frontend verificado em navegador real (Playwright) duas vezes:
+  fluxo listagem->detalhe->candidatura, e calendário mês/semana
+- Após CP-3: aguardar CP-4 antes de liberar E-5 (E-4 ainda não iniciada)
