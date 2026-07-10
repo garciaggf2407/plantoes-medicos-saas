@@ -8,11 +8,20 @@ import { OrganizationsModule } from "./organizations/organizations.module";
 import { CredentialsModule } from "./credentials/credentials.module";
 import { ShiftsModule } from "./shifts/shifts.module";
 import { ApplicationsModule } from "./applications/applications.module";
+import { CalendarModule } from "./calendar/calendar.module";
 import { AuthenticationGuard } from "./identity/guards/authentication.guard";
 import { AuthorizationGuard } from "./identity/authorization.guard";
 
 @Module({
-  imports: [PrismaModule, OrganizationsModule, AuthModule, CredentialsModule, ShiftsModule, ApplicationsModule],
+  imports: [
+    PrismaModule,
+    OrganizationsModule,
+    AuthModule,
+    CredentialsModule,
+    ShiftsModule,
+    ApplicationsModule,
+    CalendarModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

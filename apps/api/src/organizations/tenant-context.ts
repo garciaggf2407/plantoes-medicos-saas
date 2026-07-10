@@ -89,4 +89,27 @@ export class TenantContextService {
       return work(tx);
     });
   }
+
+  /**
+   * Executa `work` dentro de uma transação com
+   * app.current_doctor_profile_id definida via set_config,
+   * habilitando as políticas doctor_self_calendar em applications e
+   * shifts. Permite ao médico ler suas próprias candidaturas
+   * aprovadas e os plantões correspondentes em QUALQUER hospital
+   * (RLS normalmente escopa uma transação a um único
+   * organization_id) — sem conceder acesso a dados de outro médico
+   * nem a nenhuma escrita.
+   */
+  async withDoctorCalendarScope<T>(
+    doctorProfileId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!doctorProfileId) {
+      throw new ForbiddenException("Perfil médico não resolvido — operação bloqueada (fail closed)");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_doctor_profile_id', ${doctorProfileId}, true)`;
+      return work(tx);
+    });
+  }
 }
