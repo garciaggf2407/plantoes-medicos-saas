@@ -67,4 +67,26 @@ export class TenantContextService {
       return work(tx);
     });
   }
+
+  /**
+   * Executa `work` dentro de uma transação com
+   * app.current_actor_user_id definida via set_config, habilitando a
+   * política self_authored_global_log para registrar auditoria de
+   * ações pessoais sem hospital associado (ex.: médico altera o
+   * próprio perfil). Não concede acesso a nenhuma linha com
+   * organization_id preenchido — apenas libera INSERT com
+   * organization_id nulo e ator igual ao usuário autenticado.
+   */
+  async withSelfAuthoredAudit<T>(
+    actorId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!actorId) {
+      throw new ForbiddenException("Ator não resolvido — operação bloqueada (fail closed)");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_actor_user_id', ${actorId}, true)`;
+      return work(tx);
+    });
+  }
 }

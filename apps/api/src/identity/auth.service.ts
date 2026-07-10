@@ -1,10 +1,12 @@
 import { Injectable, Inject } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { UserRole } from "@prisma/client";
 import { OIDC_PROVIDER } from "./identity.tokens";
 import type { OidcProvider } from "./interfaces/oidc-provider.interface";
 import { SessionService } from "./session.service";
 import { loadOidcConfig, type OidcConfig } from "./oidc-config";
+import { PrismaService } from "../prisma/prisma.service";
 
 const PENDING_AUTH_COOKIE = "plantoes_auth_pending";
 
@@ -24,8 +26,46 @@ export class AuthService {
   constructor(
     @Inject(OIDC_PROVIDER) private readonly provider: OidcProvider,
     private readonly sessions: SessionService,
+    private readonly prisma: PrismaService,
   ) {
     this.config = loadOidcConfig();
+  }
+
+  /**
+   * Resolve o usuário local para um subject/email vindos do provedor
+   * OIDC autenticado, em três passos:
+   *  1. Login recorrente: já existe User com este oidcSubject.
+   *  2. Convite pendente (T-2.1.1): existe User com este email e
+   *     oidcSubject placeholder "pending:*" (hospital_admin
+   *     convidado por um superadmin) — a conta é reivindicada
+   *     trocando o subject placeholder pelo subject real.
+   *  3. Primeiro acesso sem convite: provisiona um User novo com
+   *     papel DOCTOR (auto-cadastro — hospital_admin/superadmin
+   *     nunca são criados implicitamente, apenas por convite).
+   */
+  private async resolveOrProvisionUser(subject: string, email: string): Promise<void> {
+    const existingBySubject = await this.prisma.user.findUnique({ where: { oidcSubject: subject } });
+    if (existingBySubject) {
+      return;
+    }
+
+    const existingByEmail = await this.prisma.user.findUnique({ where: { email } });
+    if (existingByEmail && existingByEmail.oidcSubject.startsWith("pending:")) {
+      await this.prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: { oidcSubject: subject },
+      });
+      return;
+    }
+    if (existingByEmail) {
+      // Email já pertence a uma conta com subject definitivo diferente
+      // (ex.: trocou de provedor) — não reivindicamos silenciosamente.
+      throw new OidcCallbackError("email_already_claimed");
+    }
+
+    await this.prisma.user.create({
+      data: { oidcSubject: subject, email, role: UserRole.DOCTOR },
+    });
   }
 
   private sign(value: string): string {
@@ -101,6 +141,8 @@ export class AuthService {
       codeVerifier: pending.codeVerifier,
       expectedNonce: pending.nonce,
     });
+
+    await this.resolveOrProvisionUser(tokens.subject, tokens.email);
 
     this.sessions.issue(res, {
       subject: tokens.subject,
