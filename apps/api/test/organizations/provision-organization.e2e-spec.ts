@@ -10,6 +10,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { TenantContextService } from "../../src/organizations/tenant-context";
 import { SessionService, type SessionPayload } from "../../src/identity/session.service";
+import { createAdminPrismaForTestCleanup } from "../support/admin-prisma";
 
 process.env.SESSION_SECRET ??= "test-only-session-secret-32-characters";
 process.env.OIDC_ISSUER_URL = "";
@@ -61,15 +62,12 @@ describe("POST /organizations (integração — provisionamento restrito a super
   });
 
   afterAll(async () => {
-    // audit_logs tem RLS: a limpeza precisa passar pelo mesmo escopo
-    // de tenant usado para criar as linhas, senão o delete não
-    // enxerga nada (RLS filtra, não lança erro) e o FK RESTRICT em
-    // actor_user_id impede apagar os usuários de teste depois.
-    for (const organizationId of createdOrgIds) {
-      await tenantContext.withTenantScope(organizationId, (tx) =>
-        tx.auditLog.deleteMany({ where: { organizationId } }),
-      );
-    }
+    // audit_logs é imutável para a role de runtime (sem DELETE) — a
+    // limpeza de teste (não o app) usa uma conexão privilegiada.
+    const admin = createAdminPrismaForTestCleanup();
+    await admin.auditLog.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
+    await admin.$disconnect();
+
     await prisma.user.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
     await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: createdOrgIds } } });

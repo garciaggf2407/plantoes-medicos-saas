@@ -4,10 +4,14 @@ import { Roles } from "../identity/decorators/roles.decorator";
 import { CurrentUser } from "../identity/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
 import { CredentialsService, type DoctorProfileInput, type SubmitCredentialInput } from "./credentials.service";
+import { ReviewCredentialUseCase, type ReviewCredentialInput } from "./review-credential.use-case";
 
 @Controller()
 export class CredentialsController {
-  constructor(private readonly credentials: CredentialsService) {}
+  constructor(
+    private readonly credentials: CredentialsService,
+    private readonly reviewCredential: ReviewCredentialUseCase,
+  ) {}
 
   @Put("doctors/me/profile")
   @Roles(UserRole.DOCTOR)
@@ -35,5 +39,15 @@ export class CredentialsController {
     @Query("organizationId") organizationId: string,
   ) {
     return this.credentials.getCredential(actor, id, organizationId);
+  }
+
+  @Post("credentials/:id/review")
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  async reviewCredentialDecision(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: ReviewCredentialInput,
+  ) {
+    return this.reviewCredential.execute(actor, id, body);
   }
 }

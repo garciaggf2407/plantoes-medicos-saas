@@ -10,6 +10,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { TenantContextService } from "../../src/organizations/tenant-context";
 import { SessionService, type SessionPayload } from "../../src/identity/session.service";
+import { createAdminPrismaForTestCleanup } from "../support/admin-prisma";
 
 process.env.SESSION_SECRET ??= "test-only-session-secret-32-characters";
 process.env.OIDC_ISSUER_URL = "";
@@ -77,14 +78,12 @@ describe("Perfil médico e credenciais (integração)", () => {
     for (const orgId of [orgA.id, orgB.id]) {
       await tenantContext.withTenantScope(orgId, (tx) => tx.credential.deleteMany({ where: { organizationId: orgId } }));
     }
-    // audit_logs self-authored (organization_id nulo) referenciam os
-    // usuários de teste como ator com FK RESTRICT — precisam ser
-    // apagados, no escopo correto de RLS, antes de apagar os users.
-    for (const userId of createdUserIds) {
-      await tenantContext.withSelfAuthoredAudit(userId, (tx) =>
-        tx.auditLog.deleteMany({ where: { actorUserId: userId, organizationId: null } }),
-      );
-    }
+    // audit_logs é imutável para a role de runtime (sem DELETE) — a
+    // limpeza de teste (não o app) usa uma conexão privilegiada.
+    const admin = createAdminPrismaForTestCleanup();
+    await admin.auditLog.deleteMany({ where: { actorUserId: { in: createdUserIds } } });
+    await admin.$disconnect();
+
     await prisma.doctorProfile.deleteMany({ where: { userId: { in: createdUserIds } } });
     await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
     await prisma.organization.deleteMany({ where: { id: { in: [orgA.id, orgB.id] } } });
