@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { AuthService, OidcCallbackError } from "./auth.service";
+import { Public } from "./decorators/public.decorator";
 
 @Controller("auth")
+@Public()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
