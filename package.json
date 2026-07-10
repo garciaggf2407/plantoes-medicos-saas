@@ -1,0 +1,18 @@
+{
+  "name": "plantoes-medicos-saas",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "dev:web": "pnpm --filter @plantoes/web dev",
+    "dev:api": "pnpm --filter @plantoes/api start:dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
