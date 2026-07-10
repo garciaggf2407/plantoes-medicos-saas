@@ -17,6 +17,7 @@
     "@plantoes/shared": "workspace:*",
     "@prisma/client": "^6.2.1",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
     "jose": "^5.9.6",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

@@ -4,11 +4,12 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { AuthModule } from "./identity/auth.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { OrganizationsModule } from "./organizations/organizations.module";
 import { AuthenticationGuard } from "./identity/guards/authentication.guard";
 import { AuthorizationGuard } from "./identity/authorization.guard";
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, OrganizationsModule, AuthModule],
   controllers: [AppController],
   providers: [
     AppService,

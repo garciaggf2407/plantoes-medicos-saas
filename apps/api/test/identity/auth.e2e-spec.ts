@@ -9,6 +9,8 @@ import { FakeOidcProvider } from "../../src/identity/providers/fake-oidc.provide
 process.env.SESSION_SECRET ??= "test-only-session-secret-32-characters";
 process.env.OIDC_ISSUER_URL = "";
 process.env.COOKIE_SECURE ??= "true";
+process.env.DATABASE_URL ??=
+  "postgresql://plantoes_app:plantoes_app_dev_local@localhost:5432/plantoes_medicos?schema=public";
 
 describe("Auth (integração — login/callback/logout)", () => {
   let app: INestApplication;
