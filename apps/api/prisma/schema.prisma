@@ -1,0 +1,220 @@
+// Schema inicial — BP-2026-07-10-002 (T-1.1.3)
+// Toda entidade escopada por hospital carrega organizationId.
+// RLS por organizationId é aplicada via migração SQL complementar
+// (Prisma não expressa CREATE POLICY nativamente — ver migration.sql).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  DOCTOR
+  HOSPITAL_ADMIN
+  SUPERADMIN
+}
+
+enum CredentialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ShiftStatus {
+  DRAFT
+  PUBLISHED
+  FILLED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+/// Hospital (tenant). Todas as demais entidades hospitalares
+/// referenciam organizationId e ficam sujeitas a RLS por esta linha.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  /// Timezone IANA do hospital (ex.: America/Sao_Paulo), usada para
+  /// converter os horários UTC armazenados em Shift.
+  timezone  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users         User[]
+  credentials   Credential[]
+  shifts        Shift[]
+  applications  Application[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("organizations")
+}
+
+/// Identidade autenticada via OIDC. Nunca armazena senha.
+/// organizationId é obrigatório para hospital_admin, nulo para
+/// superadmin (escopo global) e nulo para doctor (não pertence a
+/// um hospital; credenciamento é por Credential).
+model User {
+  id             String    @id @default(uuid())
+  oidcSubject    String    @unique @map("oidc_subject")
+  email          String    @unique
+  role           UserRole
+  organizationId String?   @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization       Organization?  @relation(fields: [organizationId], references: [id])
+  doctorProfile       DoctorProfile?
+  createdShifts        Shift[]        @relation("ShiftCreatedBy")
+  reviewedCredentials  Credential[]   @relation("CredentialReviewedBy")
+  decidedApplications  Application[]  @relation("ApplicationDecidedBy")
+  notifications        Notification[]
+  auditLogsAsActor     AuditLog[]     @relation("AuditLogActor")
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+/// Perfil médico (1:1 com User de role DOCTOR).
+model DoctorProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  crmNumber    String   @map("crm_number")
+  specialties  String[]
+  contactPhone String?  @map("contact_phone")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id])
+  credentials  Credential[]
+  applications Application[]
+
+  @@map("doctor_profiles")
+}
+
+/// Credenciamento de CRM revisado por hospital. Um médico pode ter
+/// uma credencial distinta por hospital (revisão independente).
+model Credential {
+  id              String            @id @default(uuid())
+  doctorProfileId String            @map("doctor_profile_id")
+  organizationId  String            @map("organization_id")
+  evidenceUrl     String            @map("evidence_url")
+  status          CredentialStatus  @default(PENDING)
+  reviewedByUserId String?          @map("reviewed_by_user_id")
+  reviewedAt      DateTime?         @map("reviewed_at")
+  justification   String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  reviewedBy    User?         @relation("CredentialReviewedBy", fields: [reviewedByUserId], references: [id])
+
+  @@unique([doctorProfileId, organizationId])
+  @@index([organizationId])
+  @@map("credentials")
+}
+
+/// Plantão publicado por um hospital.
+model Shift {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  specialty      String
+  /// Valor do plantão em centavos (nunca float).
+  valueCents     Int         @map("value_cents")
+  /// Início/fim sempre em UTC; converter para exibição usando
+  /// Organization.timezone.
+  startsAt       DateTime    @map("starts_at")
+  endsAt         DateTime    @map("ends_at")
+  status         ShiftStatus @default(DRAFT)
+  createdByUserId String     @map("created_by_user_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  createdBy    User          @relation("ShiftCreatedBy", fields: [createdByUserId], references: [id])
+  applications Application[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, specialty, valueCents])
+  @@map("shifts")
+}
+
+/// Candidatura de um médico a um plantão. Constraint de unicidade
+/// (shiftId, doctorProfileId) impede duplicidade em reenvio.
+/// A garantia de "só uma aprovação por plantão" é reforçada por
+/// índice único parcial (status = APPROVED) — ver migration.sql.
+model Application {
+  id              String            @id @default(uuid())
+  shiftId         String            @map("shift_id")
+  doctorProfileId String            @map("doctor_profile_id")
+  organizationId  String            @map("organization_id")
+  status          ApplicationStatus @default(PENDING)
+  appliedAt       DateTime          @default(now()) @map("applied_at")
+  decidedAt       DateTime?         @map("decided_at")
+  decidedByUserId String?           @map("decided_by_user_id")
+  justification   String?
+
+  shift         Shift         @relation(fields: [shiftId], references: [id])
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  decidedBy     User?         @relation("ApplicationDecidedBy", fields: [decidedByUserId], references: [id])
+
+  @@unique([shiftId, doctorProfileId])
+  @@index([organizationId])
+  @@map("applications")
+}
+
+/// Notificação in-app/email. Payload não deve conter PII sensível
+/// (ex.: evidência de CRM).
+model Notification {
+  id             String              @id @default(uuid())
+  userId         String              @map("user_id")
+  organizationId String              @map("organization_id")
+  channel        NotificationChannel
+  type           String
+  payload        Json
+  readAt         DateTime?           @map("read_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId, readAt])
+  @@index([organizationId])
+  @@map("notifications")
+}
+
+/// Trilha de auditoria imutável (sem update/delete a nível de
+/// aplicação). organizationId nulo para ações globais de superadmin.
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")
+  actorUserId    String   @map("actor_user_id")
+  action         String
+  targetType     String   @map("target_type")
+  targetId       String   @map("target_id")
+  justification  String?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  actor        User          @relation("AuditLogActor", fields: [actorUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
