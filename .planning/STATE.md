@@ -29,9 +29,14 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 7/9 |
+| E-5 Notificações e qualidade | IN PROGRESS | 8/9 |
 
 ## Current
+- T-5.3.1 (docs/operations/runbooks.md): 5 runbooks (deploy, rollback, backup/restore, fila de
+  notificação travada, indisponibilidade do provedor OIDC), cada um com gatilho/passos/critério
+  de validação. Documenta honestamente uma lacuna real do desenho atual: não há reclaim
+  automático de linhas outbox_events presas em PROCESSING (worker morto no meio de um job) —
+  remediação manual descrita. Só falta T-5.3.2 (docker-compose) + CP-5 para fechar E-5.
 - T-5.2.3 (reports/security-baseline.md): SAST (ESLint + eslint-plugin-security), scan de
   dependências (pnpm audit) e scan de segredos (gitleaks) rodados de verdade, com evidência real
   anexada no relatório. Descoberta real: `apps/api` e `packages/shared` não tinham NENHUMA
