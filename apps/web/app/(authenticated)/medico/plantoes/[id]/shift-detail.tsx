@@ -5,6 +5,12 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { ShiftSummary } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -76,20 +82,35 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
     }
   }
 
+  const backLink = (
+    <Link
+      href={`/medico/plantoes?organizationId=${organizationId}`}
+      className="mb-4 inline-block text-sm text-slate-600 hover:text-slate-900"
+    >
+      ← Voltar à listagem
+    </Link>
+  );
+
   if (!organizationId) {
-    return <p role="status">Hospital não informado na URL.</p>;
+    return <EmptyState message="Hospital não informado na URL." />;
   }
   if (view.status === "loading") {
-    return <p role="status">Carregando…</p>;
+    return <LoadingState />;
   }
   if (view.status === "not-found") {
-    return <p role="status">Plantão não encontrado.</p>;
+    return (
+      <div>
+        {backLink}
+        <EmptyState message="Plantão não encontrado." />
+      </div>
+    );
   }
   if (view.status === "error") {
     return (
-      <p role="alert" className="text-red-600">
-        {view.message}
-      </p>
+      <div>
+        {backLink}
+        <ErrorState message={view.message} />
+      </div>
     );
   }
 
@@ -97,49 +118,45 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
 
   return (
     <div>
-      <Link href={`/medico/plantoes?organizationId=${organizationId}`} className="mb-4 inline-block underline">
-        ← Voltar à listagem
-      </Link>
-      <h1 className="mb-2 text-xl font-semibold">{shift.specialty}</h1>
-      <dl className="mb-6 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-        <dt className="font-medium">Início</dt>
-        <dd>{formatDateTime(shift.startsAt)}</dd>
-        <dt className="font-medium">Fim</dt>
-        <dd>{formatDateTime(shift.endsAt)}</dd>
-        <dt className="font-medium">Valor</dt>
-        <dd>{centsToReais(shift.valueCents)}</dd>
-      </dl>
+      {backLink}
+      <PageHeader title={shift.specialty} description="Confirme os detalhes antes de se candidatar." />
+      <Card className="mb-6">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dt className="font-medium text-slate-700">Início</dt>
+          <dd className="text-slate-900">{formatDateTime(shift.startsAt)}</dd>
+          <dt className="font-medium text-slate-700">Fim</dt>
+          <dd className="text-slate-900">{formatDateTime(shift.endsAt)}</dd>
+          <dt className="font-medium text-slate-700">Valor</dt>
+          <dd className="text-slate-900">{centsToReais(shift.valueCents)}</dd>
+        </dl>
+      </Card>
 
       {submit === "success" ? (
-        <div ref={resultRef} tabIndex={-1} role="status" className="rounded border border-green-600 p-3 text-green-700">
+        <div
+          ref={resultRef}
+          tabIndex={-1}
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+        >
           Candidatura enviada com sucesso! Aguarde a decisão do hospital.
         </div>
       ) : typeof submit === "object" && submit.error ? (
-        <div ref={resultRef} tabIndex={-1} role="alert" className="rounded border border-red-600 p-3 text-red-700">
-          {submit.error}
+        <div ref={resultRef} tabIndex={-1}>
+          <ErrorState message={submit.error} />
         </div>
       ) : submit === "confirming" ? (
         <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={confirmApplication}
-            className="rounded bg-black px-4 py-2 text-white"
-          >
+          <Button type="button" onClick={confirmApplication}>
             Confirmar candidatura
-          </button>
-          <button type="button" onClick={() => setSubmit("idle")} className="rounded border px-4 py-2">
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setSubmit("idle")}>
             Cancelar
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setSubmit("confirming")}
-          disabled={submit === "submitting"}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
-        >
+        <Button type="button" onClick={() => setSubmit("confirming")} disabled={submit === "submitting"}>
           {submit === "submitting" ? "Enviando…" : "Candidatar-se"}
-        </button>
+        </Button>
       )}
     </div>
   );
