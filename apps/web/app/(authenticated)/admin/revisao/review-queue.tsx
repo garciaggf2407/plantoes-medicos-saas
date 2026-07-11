@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import type { PendingCredentialDto, PendingApplicationDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -84,65 +90,76 @@ export function ReviewQueue() {
     }
   }
 
-  if (meState.status === "loading") return <p role="status">Carregando…</p>;
-  if (meState.status === "error") return <p role="alert" className="text-red-600">Não foi possível carregar seus dados.</p>;
-  if (loadError) return <p role="alert" className="text-red-600">{loadError}</p>;
+  if (meState.status === "loading") return <LoadingState />;
+  if (meState.status === "error") return <ErrorState message="Não foi possível carregar seus dados." />;
+  if (loadError) return <ErrorState message={loadError} />;
 
   const organizationId = meState.me.organizationId ?? "";
 
   return (
     <div>
-      <h2 className="mb-2 text-sm font-semibold">Credenciais pendentes</h2>
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">Credenciais pendentes</h2>
       {credentials === null ? (
-        <p role="status">Carregando…</p>
+        <LoadingState />
       ) : credentials.length === 0 ? (
-        <p role="status" className="mb-6">Nenhuma credencial pendente.</p>
+        <div className="mb-6">
+          <EmptyState message="Nenhuma credencial pendente." />
+        </div>
       ) : (
         <ul className="mb-6 flex flex-col gap-3">
           {credentials.map((c) => {
             const state = getItemState(c.id);
             return (
-              <li key={c.id} className="rounded border p-3">
-                <div className="text-sm">
-                  <span className="font-medium">{c.doctorProfile.user.email}</span> · CRM {c.doctorProfile.crmNumber} ·{" "}
-                  {c.doctorProfile.specialties.join(", ")}
-                </div>
-                <div className="text-xs text-gray-500">Enviado em {formatDateTime(c.createdAt)}</div>
-                <ReviewActions
-                  state={state}
-                  onJustificationChange={(v) => setJustification(c.id, v)}
-                  onApprove={() => decide("credential", c.id, "APPROVED", organizationId)}
-                  onReject={() => decide("credential", c.id, "REJECTED", organizationId)}
-                />
+              <li key={c.id}>
+                <Card>
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant="neutral">Credencial</Badge>
+                    <span className="text-sm font-medium text-slate-900">{c.doctorProfile.user.email}</span>
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    CRM {c.doctorProfile.crmNumber} · {c.doctorProfile.specialties.join(", ")}
+                  </div>
+                  <div className="text-xs text-slate-500">Enviado em {formatDateTime(c.createdAt)}</div>
+                  <ReviewActions
+                    state={state}
+                    onJustificationChange={(v) => setJustification(c.id, v)}
+                    onApprove={() => decide("credential", c.id, "APPROVED", organizationId)}
+                    onReject={() => decide("credential", c.id, "REJECTED", organizationId)}
+                  />
+                </Card>
               </li>
             );
           })}
         </ul>
       )}
 
-      <h2 className="mb-2 text-sm font-semibold">Candidaturas pendentes</h2>
+      <h2 className="mb-3 text-sm font-semibold text-slate-900">Candidaturas pendentes</h2>
       {applications === null ? (
-        <p role="status">Carregando…</p>
+        <LoadingState />
       ) : applications.length === 0 ? (
-        <p role="status">Nenhuma candidatura pendente.</p>
+        <EmptyState message="Nenhuma candidatura pendente." />
       ) : (
         <ul className="flex flex-col gap-3">
           {applications.map((a) => {
             const state = getItemState(a.id);
             return (
-              <li key={a.id} className="rounded border p-3">
-                <div className="text-sm">
-                  <span className="font-medium">{a.doctorProfile.user.email}</span> · CRM {a.doctorProfile.crmNumber}
-                </div>
-                <div className="text-sm">
-                  {a.shift.specialty} — {formatDateTime(a.shift.startsAt)} a {formatDateTime(a.shift.endsAt)} · {centsToReais(a.shift.valueCents)}
-                </div>
-                <ReviewActions
-                  state={state}
-                  onJustificationChange={(v) => setJustification(a.id, v)}
-                  onApprove={() => decide("application", a.id, "APPROVED", organizationId)}
-                  onReject={() => decide("application", a.id, "REJECTED", organizationId)}
-                />
+              <li key={a.id}>
+                <Card>
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant="neutral">Candidatura</Badge>
+                    <span className="text-sm font-medium text-slate-900">{a.doctorProfile.user.email}</span>
+                  </div>
+                  <div className="text-sm text-slate-600">CRM {a.doctorProfile.crmNumber}</div>
+                  <div className="text-sm text-slate-600">
+                    {a.shift.specialty} — {formatDateTime(a.shift.startsAt)} a {formatDateTime(a.shift.endsAt)} · {centsToReais(a.shift.valueCents)}
+                  </div>
+                  <ReviewActions
+                    state={state}
+                    onJustificationChange={(v) => setJustification(a.id, v)}
+                    onApprove={() => decide("application", a.id, "APPROVED", organizationId)}
+                    onReject={() => decide("application", a.id, "REJECTED", organizationId)}
+                  />
+                </Card>
               </li>
             );
           })}
@@ -164,7 +181,7 @@ function ReviewActions({
   onReject: () => void;
 }) {
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-2">
       <label className="flex-1 text-sm">
         <span className="sr-only">Justificativa</span>
         <input
@@ -173,24 +190,19 @@ function ReviewActions({
           placeholder="Justificativa (obrigatória)"
           value={state.justification}
           onChange={(e) => onJustificationChange(e.target.value)}
-          className="w-full rounded border px-2 py-1"
+          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
         />
       </label>
-      <button type="button" disabled={state.submitting} onClick={onApprove} className="rounded bg-black px-3 py-1 text-white disabled:opacity-50">
+      <Button type="button" size="sm" disabled={state.submitting} onClick={onApprove}>
         {state.submitting ? "Enviando…" : "Aprovar"}
-      </button>
-      <button
-        type="button"
-        disabled={state.submitting}
-        onClick={onReject}
-        className="rounded border border-red-600 px-3 py-1 text-red-600 disabled:opacity-50"
-      >
+      </Button>
+      <Button type="button" size="sm" variant="danger" disabled={state.submitting} onClick={onReject}>
         Rejeitar
-      </button>
+      </Button>
       {state.error && (
-        <p role="alert" className="w-full text-sm text-red-600">
-          {state.error}
-        </p>
+        <div className="w-full">
+          <ErrorState message={state.error} />
+        </div>
       )}
     </div>
   );
