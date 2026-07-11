@@ -20,15 +20,16 @@ export interface ShiftCalendarEvent {
 /**
  * Legenda de estados: cor É reforçada por texto/símbolo, nunca é o
  * único sinal (acessibilidade — daltonismo/leitores de tela). Hex
- * abaixo corresponde 1:1 às escalas Tailwind da paleta semântica
- * (blue-600/emerald-600/amber-600/red-600/slate-400) — FullCalendar
- * exige cor literal, não aceita className.
+ * abaixo usa as escalas Tailwind da paleta semântica, com o passo
+ * ajustado por status (600 ou 700) para garantir >=4.5:1 de contraste
+ * sobre branco tanto como texto quanto como fundo de evento —
+ * FullCalendar exige cor literal, não aceita className.
  */
 const STATUS_META: Record<ShiftCalendarStatus, { label: string; symbol: string; color: string; textClass: string }> = {
-  DRAFT: { label: "Rascunho", symbol: "◇", color: "#94a3b8", textClass: "text-slate-500" },
+  DRAFT: { label: "Rascunho", symbol: "◇", color: "#64748b", textClass: "text-slate-500" },
   PUBLISHED: { label: "Publicado", symbol: "○", color: "#2563eb", textClass: "text-blue-600" },
-  PENDING: { label: "Candidatura pendente", symbol: "◐", color: "#d97706", textClass: "text-amber-600" },
-  APPROVED: { label: "Aprovado", symbol: "●", color: "#059669", textClass: "text-emerald-600" },
+  PENDING: { label: "Candidatura pendente", symbol: "◐", color: "#b45309", textClass: "text-amber-700" },
+  APPROVED: { label: "Aprovado", symbol: "●", color: "#047857", textClass: "text-emerald-700" },
   FILLED: { label: "Preenchido", symbol: "■", color: "#047857", textClass: "text-emerald-700" },
   CANCELLED: { label: "Cancelado", symbol: "✕", color: "#dc2626", textClass: "text-red-600" },
   REJECTED: { label: "Rejeitado", symbol: "✕", color: "#dc2626", textClass: "text-red-600" },
