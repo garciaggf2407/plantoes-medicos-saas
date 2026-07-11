@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { API_URL, addSessionCookie, cookieHeader, getSessionCookieValue, loginAs } from "./support/auth";
+import { API_URL, cookieHeader, getSessionCookieValue, loginAs } from "./support/auth";
 import {
   seedSc1,
   seedSc2,
@@ -7,7 +7,6 @@ import {
   seedSc4,
   seedSc5,
   cleanup,
-  checkNotification,
   checkEmailDelivery,
   type Sc1Fixture,
   type Sc2Fixture,
@@ -43,7 +42,7 @@ test.describe("SC-1: médico credenciado filtra, candidata-se e vê o plantão a
     await expect(shiftLink).toBeVisible();
 
     await shiftLink.click();
-    await expect(page).toHaveURL(new RegExp(`/medico/plantoes/${fixture.shiftId}`));
+    expect(page.url()).toContain(`/medico/plantoes/${fixture.shiftId}`);
 
     await page.getByRole("button", { name: "Candidatar-se" }).click();
     await page.getByRole("button", { name: "Confirmar candidatura" }).click();

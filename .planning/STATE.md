@@ -29,9 +29,18 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 6/9 |
+| E-5 Notificações e qualidade | IN PROGRESS | 7/9 |
 
 ## Current
+- T-5.2.3 (reports/security-baseline.md): SAST (ESLint + eslint-plugin-security), scan de
+  dependências (pnpm audit) e scan de segredos (gitleaks) rodados de verdade, com evidência real
+  anexada no relatório. Descoberta real: `apps/api` e `packages/shared` não tinham NENHUMA
+  config de ESLint (pnpm lint falhava com "eslint não reconhecido") — nunca detectado porque CI
+  nunca rodou de verdade (nada empurrado ainda). Corrigido: eslint.config.mjs criado para os
+  dois + eslint-plugin-security adicionado também em apps/web. Achados: 1 regex triado como
+  falso positivo (documentado inline + no relatório), 1 dependência moderada (postcss interno
+  do Next.js, build-time only, aceite formal com expiração 2026-10-11), 0 segredos reais no
+  histórico do git. Nenhum crítico/alto.
 - Epic: E-5 in progress (S-5.1 completa: T-5.1.1-T-5.1.4; T-5.2.1 E2E; T-5.2.2 observabilidade)
 - Tests: 138/138 passing (apps/api), 5/5 passing (Playwright E2E, apps/web), full workspace
   build green

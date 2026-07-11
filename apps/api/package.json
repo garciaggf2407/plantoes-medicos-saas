@@ -34,6 +34,7 @@
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@nestjs/cli": "^11.0.10",
     "@nestjs/testing": "^11.1.28",
     "@swc/core": "^1.9.3",
@@ -41,9 +42,12 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
     "@types/supertest": "^6.0.2",
+    "eslint": "^9.39.4",
+    "eslint-plugin-security": "^4.0.1",
     "prisma": "^6.2.1",
     "supertest": "^7.0.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.63.0",
     "unplugin-swc": "^1.5.1",
     "vitest": "^3.0.0"
   }

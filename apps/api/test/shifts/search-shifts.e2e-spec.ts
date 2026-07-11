@@ -116,7 +116,6 @@ describe("GET /shifts/search (integração — busca paginada por tenant)", () =
       .set("Cookie", cookieFor(doctor.subject));
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(3); // 3 PUBLISHED em org-A (2 Cardiologia + 1 Pediatria); DRAFT/CANCELLED excluídos
-    expect(res.body.items.every((s: { specialty: string }) => true)).toBe(true);
   });
 
   it("filtra por especialidade", async () => {

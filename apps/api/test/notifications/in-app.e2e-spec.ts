@@ -40,7 +40,6 @@ describe("Notificações in-app (integração — T-5.1.3)", () => {
   const doctorCardio = { subject: `doctor-cardio-${randomUUID()}`, email: `doctor-cardio-${randomUUID()}@example.com` };
   const doctorOrtho = { subject: `doctor-ortho-${randomUUID()}`, email: `doctor-ortho-${randomUUID()}@example.com` };
   let orgA: { id: string };
-  let adminAUser: { id: string };
   const createdUserIds: string[] = [];
 
   function cookieFor(subject: string): string {
@@ -99,7 +98,6 @@ describe("Notificações in-app (integração — T-5.1.3)", () => {
     const adminAUserRow = await prisma.user.create({
       data: { oidcSubject: adminA.subject, email: adminA.email, role: UserRole.HOSPITAL_ADMIN, organizationId: orgA.id },
     });
-    adminAUser = adminAUserRow;
     createdUserIds.push(adminAUserRow.id);
 
     const doctorUsers = await Promise.all([
