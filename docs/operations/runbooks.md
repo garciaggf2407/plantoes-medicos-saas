@@ -41,17 +41,20 @@ antes do primeiro deploy em produção. Nenhum contato real está hardcoded aqui
      email existir — ver `apps/api/src/notifications/email.adapter.ts`)
    - `OTEL_EXPORTER_OTLP_ENDPOINT` (opcional — sem ele, traces/métricas vão só para o console do
      processo, ver T-5.2.2)
-4. Rodar as migrations do Prisma contra o banco de produção, com a role de MIGRAÇÃO (superusuário
-   ou role com permissão de DDL), nunca com a role de runtime:
+4. Preencher `infra/.env` a partir de `infra/.env.example` (nunca reaproveitar `infra/.env` de
+   outro ambiente — `POSTGRES_SUPERUSER_PASSWORD`, `PLANTOES_APP_DB_PASSWORD` e `SESSION_SECRET`
+   devem ser únicos por ambiente).
+5. Subir os serviços via `infra/docker-compose.yml` (T-5.3.2) — um único comando:
    ```
-   DATABASE_URL="<url-com-role-de-migracao>" pnpm --filter @plantoes/api exec prisma migrate deploy
+   docker compose -f infra/docker-compose.yml --env-file infra/.env up -d
    ```
-5. Subir os serviços via `infra/docker-compose.yml` (T-5.3.2):
-   ```
-   docker compose -f infra/docker-compose.yml up -d
-   ```
-6. Aguardar os healthchecks (`GET /health` no apps/api, resposta HTTP 200 do apps/web) ficarem
-   `healthy` antes de rotear tráfego real para a nova versão.
+   O serviço one-off `migrate` roda as migrations do Prisma com a role de MIGRAÇÃO (superusuário,
+   nunca a role de runtime `plantoes_app`) e define a senha da role de runtime automaticamente,
+   ANTES dos serviços `api`/`worker` subirem (`depends_on: condition: service_completed_successfully`
+   — não é preciso rodar `prisma migrate deploy` manualmente à parte).
+6. Aguardar os healthchecks (`GET /health` no apps/api/worker, resposta HTTP <500 do apps/web)
+   ficarem `healthy` (`docker compose -f infra/docker-compose.yml ps`) antes de rotear tráfego
+   real para a nova versão.
 
 **Critério de validação:** `GET /health` retorna `200 {"status":"ok"}`; login de um usuário de
 teste conhecido funciona ponta a ponta; `docker compose ps` mostra todos os serviços como
@@ -78,7 +81,12 @@ schema mais novo sem quebrar.
    docker images | grep plantoes
    ```
 2. ⚠️ **DESTRUTIVO (interrompe o serviço por alguns segundos)** — confirme antes de continuar:
-   substituir a imagem em produção pela tag anterior:
+   substituir a imagem em produção pela tag anterior (`infra/scripts/rollback-app.sh` só troca a
+   imagem e reinicia os serviços — **nunca** roda o serviço `migrate`/toca o schema):
+   ```
+   sh infra/scripts/rollback-app.sh <tag-anterior-conhecida-boa>
+   ```
+   Equivalente manual, se preferir rodar passo a passo:
    ```
    docker compose -f infra/docker-compose.yml down
    PLANTOES_IMAGE_TAG=<tag-anterior-conhecida-boa> docker compose -f infra/docker-compose.yml up -d

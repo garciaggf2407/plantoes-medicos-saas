@@ -20,7 +20,11 @@
   required when running `test/notifications/notification-worker.e2e-spec.ts`.
 - GitHub CLI 2.96.0 (C:\Program Files\GitHub CLI, not on session PATH by default) — installed, NOT yet authenticated (user postponed `gh auth login`)
 - GitHub remote: https://github.com/garciaggf2407/ProjetoMedicos.git (added as `origin`, branch `main`) — nothing pushed yet
-- Docker — still NOT installed. Needed again for T-5.3.2 (docker-compose).
+- Docker — ainda NÃO instalado neste ambiente (sem admin/UAC para o instalador do Docker
+  Desktop, mesma limitação já documentada para Redis/gitleaks). `infra/docker-compose.yml` e os
+  Dockerfiles (T-5.3.2) foram escritos e revisados com cuidado, mas o `docker compose up` em si
+  **não pôde ser executado de verdade** — ver nota em T-5.3.2 abaixo sobre a verificação
+  alternativa usada para compensar.
 
 ## Progress
 | Epic | Status | Tasks Done |
@@ -28,15 +32,49 @@
 | E-1 Fundação | APPROVED (CP-1, condicional — CI ainda não verificada) | 7/7 |
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
-| E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 8/9 |
+| E-4 Portal do Administrador | APPROVED (CP-4) | 4/4 |
+| E-5 Notificações e qualidade | IN PROGRESS | 9/9 (falta só CP-5) |
 
 ## Current
+- T-5.3.2 (infra/docker-compose.yml + infra/api.Dockerfile + infra/web.Dockerfile +
+  infra/entrypoint-migrate.sh + infra/.env.example + infra/scripts/rollback-app.sh): serviços
+  postgres, redis, migrate (one-off), api, worker (mesma imagem do api, `NOTIFICATIONS_WORKER_ENABLED=true`,
+  serviço dedicado em vez de embutido no processo da api), web. `migrate` roda `prisma migrate
+  deploy` com role privilegiada + `ALTER ROLE plantoes_app WITH PASSWORD ...` (a role de runtime
+  nasce SEM senha por desenho — ver migration `app_role_grants` — fail-closed até um operador/o
+  próprio deploy definir a senha), e só então `api`/`worker` sobem
+  (`depends_on: condition: service_completed_successfully`) — é isso que faz "docker compose up"
+  funcionar como um único comando numa máquina limpa. Nenhum segredo hardcoded no compose: todo
+  valor sensível vem de `infra/.env` (gitignored, nunca committed) via `${VAR}` sem fallback.
+  **Limitação honestamente declarada**: Docker não está instalado neste ambiente (sem
+  admin/UAC), então `docker compose up` real nunca rodou aqui. Verificação alternativa feita de
+  verdade, usando o toolchain nativo já instalado (não é uma simulação): (1) `pnpm --filter
+  @plantoes/api build` + `node dist/main.js` — exatamente o CMD do container — rodou contra o
+  Postgres local e respondeu `GET /health` → `200 {"status":"ok"}`, confirmando que o comando de
+  runtime do Dockerfile funciona; (2) a substituição de senha via shell (`ALTER ROLE plantoes_app
+  WITH PASSWORD '${VAR}'`) foi testada de verdade contra o Postgres local via psql, incluindo
+  reautenticar como `plantoes_app` com a nova senha — funcionou; **descoberta real durante esse
+  teste**: a sintaxe `:'var'` do psql (interpolação nativa do cliente, mais segura contra SQL
+  injection que interpolação de shell) não substituiu a variável mesmo com `-v` — tentei consertar
+  ordem dos argumentos (psql exige opções antes do argumento posicional de conexão) mas o erro de
+  sintaxe persistiu; sem Docker para isolar se é um problema desta build específica do psql no
+  Windows, adotei interpolação de shell simples no `entrypoint-migrate.sh` (documentada com a
+  restrição de que a senha não pode conter apóstrofo). (3) `next build` com `output: "standalone"`
+  falhou neste host Windows por EPERM ao criar symlinks (exige modo desenvolvedor/admin, indisponíveis
+  aqui) — não consegui confirmar que funcionaria dentro do container Linux sem Docker para testar,
+  então revertido para uma imagem mais simples e pesada (`pnpm install` completo + `next start`)
+  em vez de arriscar um Dockerfile com um passo não verificável. **O que NÃO foi verificado**:
+  `docker build`/`docker compose up` de ponta a ponta, healthchecks reais do compose, e o fluxo
+  completo `migrate` → `api`/`worker` → `web` orquestrado pelo Docker propriamente dito. Se/quando
+  Docker estiver disponível, rodar `docker compose -f infra/docker-compose.yml --env-file
+  infra/.env up -d` e validar contra os critérios de aceite antes de considerar T-5.3.2
+  definitivamente fechada em produção real.
 - T-5.3.1 (docs/operations/runbooks.md): 5 runbooks (deploy, rollback, backup/restore, fila de
   notificação travada, indisponibilidade do provedor OIDC), cada um com gatilho/passos/critério
   de validação. Documenta honestamente uma lacuna real do desenho atual: não há reclaim
   automático de linhas outbox_events presas em PROCESSING (worker morto no meio de um job) —
-  remediação manual descrita. Só falta T-5.3.2 (docker-compose) + CP-5 para fechar E-5.
+  remediação manual descrita. Runbooks de Deploy/Rollback atualizados nesta task para referenciar
+  o serviço `migrate` e `infra/scripts/rollback-app.sh` reais.
 - T-5.2.3 (reports/security-baseline.md): SAST (ESLint + eslint-plugin-security), scan de
   dependências (pnpm audit) e scan de segredos (gitleaks) rodados de verdade, com evidência real
   anexada no relatório. Descoberta real: `apps/api` e `packages/shared` não tinham NENHUMA
