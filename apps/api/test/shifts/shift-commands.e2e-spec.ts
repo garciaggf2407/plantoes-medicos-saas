@@ -85,6 +85,8 @@ describe("Shift commands (integração — rascunhar, publicar, editar, cancelar
 
   afterAll(async () => {
     const admin = createAdminPrismaForTestCleanup();
+    await admin.notification.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    await admin.emailDelivery.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await admin.outboxEvent.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await admin.$disconnect();
     for (const orgId of [orgA.id, orgB.id]) {

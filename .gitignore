@@ -9,3 +9,5 @@ coverage/
 .orchestrator/runtime/*/attempts/
 .tools/
 dump.rdb
+apps/web/test-results/
+apps/web/playwright-report/

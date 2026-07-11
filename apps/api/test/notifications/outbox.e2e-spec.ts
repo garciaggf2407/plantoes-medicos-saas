@@ -105,6 +105,8 @@ describe("Outbox transacional (integração — T-5.1.1)", () => {
 
   afterAll(async () => {
     const admin = createAdminPrismaForTestCleanup();
+    await admin.notification.deleteMany({ where: { organizationId: orgA.id } });
+    await admin.emailDelivery.deleteMany({ where: { organizationId: orgA.id } });
     await admin.outboxEvent.deleteMany({ where: { organizationId: orgA.id } });
     await admin.auditLog.deleteMany({ where: { actorUserId: { in: createdUserIds } } });
     await admin.$disconnect();

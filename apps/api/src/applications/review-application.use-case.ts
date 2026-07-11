@@ -21,9 +21,15 @@ export interface ReviewApplicationInput {
  * único parcial `applications_one_approved_per_shift` no banco
  * (migration rls_and_constraints, T-1.1.3) — não uma checagem em
  * código, que teria uma janela de corrida entre "ler" e "escrever".
- * Se duas aprovações concorrentes disputam o mesmo plantão, a
- * segunda transação a tentar o COMMIT recebe violação de constraint
- * do Postgres; este caso é traduzido em ConflictException.
+ * Se duas decisões concorrentes disputam o mesmo plantão, a segunda
+ * transação a tentar seu UPDATE em "applications" recebe violação de
+ * constraint do Postgres; este caso é traduzido em ConflictException.
+ * Um `SELECT ... FOR UPDATE` na linha do plantão, logo no início da
+ * transação, serializa essas decisões concorrentes ANTES de qualquer
+ * UPDATE em applications — sem essa trava explícita, duas decisões
+ * concorrentes no mesmo plantão podem formar um deadlock real do
+ * Postgres (ShareLock cruzado via FK) em vez de uma violação de
+ * constraint limpa. Ver comentário no início de execute().
  *
  * Ao aprovar, o plantão muda para FILLED e qualquer outra
  * candidatura PENDING para o mesmo plantão é auto-rejeitada (o
@@ -49,11 +55,34 @@ export class ReviewApplicationUseCase {
     }
 
     return this.tenantContext.withTenantScope(organizationId, async (tx) => {
+      const preliminary = await tx.application.findUnique({ where: { id: applicationId } });
+      if (!preliminary) {
+        throw new NotFoundException("Candidatura não encontrada");
+      }
+      this.tenantContext.assertResourceBelongsToOrganization(preliminary.organizationId, organizationId);
+
+      // Trava a linha do plantão ANTES de qualquer UPDATE em
+      // applications deste plantão, estabelecendo uma ordem de lock
+      // consistente entre decisões concorrentes (aprovar/rejeitar) do
+      // MESMO plantão. Sem isso, duas decisões concorrentes podem
+      // formar um deadlock real do Postgres: um UPDATE em
+      // "applications" dispara um ShareLock implícito na linha do
+      // shift referenciado (checagem de FK), então cada transação
+      // fica presa esperando a outra liberar esse ShareLock antes de
+      // conseguir a trava exclusiva do próprio UPDATE em "shifts"
+      // mais adiante — um ciclo clássico de espera cruzada. Travar o
+      // shift primeiro faz a segunda transação simplesmente esperar
+      // em fila em vez de formar o ciclo.
+      await tx.$queryRaw`SELECT id FROM shifts WHERE id = ${preliminary.shiftId} FOR UPDATE`;
+
+      // Re-lê a candidatura já com o plantão travado — garante ver o
+      // estado mais atual (ex.: se uma decisão concorrente para o
+      // mesmo plantão já rodou e auto-rejeitou esta candidatura
+      // enquanto esperávamos a trava).
       const application = await tx.application.findUnique({ where: { id: applicationId } });
       if (!application) {
         throw new NotFoundException("Candidatura não encontrada");
       }
-      this.tenantContext.assertResourceBelongsToOrganization(application.organizationId, organizationId);
 
       if (application.status !== ApplicationStatus.PENDING) {
         if (application.status === input.decision) {
