@@ -93,9 +93,20 @@ test.describe("SC-2: administrador publica plantão e aprova/rejeita candidatura
       await page.getByLabel("Início").fill(startsAt);
       await page.getByLabel("Fim").fill(endsAt);
       await page.getByRole("button", { name: "Criar (rascunho)" }).click();
-      const row = page.locator("tr", { hasText: fixture.specialty }).filter({ has: page.getByRole("button", { name: "Publicar" }) }).first();
-      await expect(row).toBeVisible();
-      await row.getByRole("button", { name: "Publicar" }).click();
+      const draftRow = page.locator("tr", { hasText: fixture.specialty }).filter({ has: page.getByRole("button", { name: "Publicar" }) }).first();
+      await expect(draftRow).toBeVisible();
+      // Localizado de novo por uma data (estável através da mudança de
+      // status) em vez de reusar o locator do rascunho: assim que
+      // "Publicar" é clicado, o botão -- e portanto o locator original,
+      // que dependia dele -- deixa de casar com a linha. O clique só
+      // dispara a chamada à API + reload() de forma assíncrona; sem
+      // esperar "Publicado" aparecer de verdade, o teste segue e
+      // consulta a API antes do reload terminar (corrida, não bug de
+      // produto -- a UI final sempre mostrou as duas linhas certas).
+      const startDay = startsAt.slice(8, 10);
+      const publishedRow = page.locator("tr", { hasText: fixture.specialty }).filter({ hasText: `${startDay}/` });
+      await draftRow.getByRole("button", { name: "Publicar" }).click();
+      await expect(publishedRow.getByText("Publicado")).toBeVisible();
     }
 
     await createAndPublish("2026-11-01T08:00", "2026-11-01T16:00");
