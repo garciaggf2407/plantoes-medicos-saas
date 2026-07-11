@@ -29,19 +29,24 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 3/9 |
+| E-5 Notificações e qualidade | IN PROGRESS | 4/9 |
 
 ## Current
-- Epic: E-5 in progress (T-5.1.1 outbox, T-5.1.2 worker, T-5.1.3 notificações in-app done)
-- Tests: 127/127 passing (apps/api), full workspace build green
-- Nota de arquitetura: NotificationWorkerService.registerHandler agora suporta múltiplos
-  handlers por eventType (array, não mais 1:1) — necessário porque InAppService (T-5.1.3) e o
-  futuro EmailAdapter (T-5.1.4) reagem aos MESMOS eventos ("shift.published",
-  "application.decided"). Handlers reutilizam o `tx` já aberto pelo processor (nunca abrem
-  transação própria) para que side-effects + conclusão do evento na outbox commitem juntos.
-  Notification ganhou `sourceOutboxEventId` (unique com userId) para que reprocessamento de um
-  job (handler irmão falhou, BullMQ repete o job inteiro) nunca duplique uma notificação já
-  criada por uma tentativa anterior.
+- Epic: E-5 in progress (T-5.1.1 outbox, T-5.1.2 worker, T-5.1.3 in-app, T-5.1.4 email done —
+  S-5.1 "Notificações confiáveis" completa)
+- Tests: 132/132 passing (apps/api), full workspace build green
+- Nota de arquitetura: NotificationWorkerService.registerHandler suporta múltiplos handlers por
+  eventType (array, não 1:1) — InAppService (T-5.1.3) e EmailAdapter (T-5.1.4) reagem aos
+  MESMOS eventos ("shift.published", "application.decided"). Handlers reutilizam o `tx` já
+  aberto pelo processor para efeitos SEM impacto externo (in-app: rollback+retry é seguro,
+  recria o mesmo estado). Descoberta real ao testar EmailAdapter: um email de verdade JÁ FOI
+  enviado (efeito externo irreversível) antes do handler retornar — se um handler IRMÃO falhar
+  depois, ctx.tx inteiro sofre rollback e apagaria a prova de entrega junto, causando reenvio
+  real no retry. Corrigido: EmailAdapter.sendOnce usa sua PRÓPRIA transação
+  (tenantContext.withTenantScope, não ctx.tx) para checar/gravar EmailDelivery — sobrevive ao
+  rollback do job. Regra geral: efeitos com contraparte externa não reversível precisam de
+  registro de confirmação em transação própria e já commitada; efeitos puramente internos ao
+  banco podem viver dentro do tx compartilhado do job com segurança.
 - Frontend verificado em navegador real (Playwright) três vezes:
   E-3 (listagem->detalhe->candidatura, calendário mês/semana) e
   E-4 (gestão de plantões CRUD, fila de revisão, calendário da
