@@ -5,8 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { SearchShiftsResponse } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 const PAGE_SIZE = 10;
+
+const INPUT_CLASS =
+  "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -93,100 +102,76 @@ export function ShiftListing() {
   }
 
   if (!organizationId) {
-    return (
-      <p role="status">
-        Informe o hospital para buscar plantões (parâmetro <code>organizationId</code> na URL).
-      </p>
-    );
+    return <EmptyState message="Informe o hospital para buscar plantões (parâmetro organizationId na URL)." />;
   }
 
   return (
     <div>
-      <form onSubmit={handleFilterSubmit} className="mb-6 flex flex-wrap gap-3" aria-label="Filtros de busca">
-        <label className="flex flex-col text-sm">
+      <form
+        onSubmit={handleFilterSubmit}
+        aria-label="Filtros de busca"
+        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+      >
+        <label className="flex flex-col gap-1 text-sm text-slate-700">
           Especialidade
-          <input
-            name="specialty"
-            defaultValue={specialty}
-            type="text"
-            className="rounded border px-2 py-1"
-            placeholder="Ex.: Cardiologia"
-          />
+          <input name="specialty" defaultValue={specialty} type="text" className={INPUT_CLASS} placeholder="Ex.: Cardiologia" />
         </label>
-        <label className="flex flex-col text-sm">
+        <label className="flex flex-col gap-1 text-sm text-slate-700">
           Valor mínimo (R$)
-          <input
-            name="minValueReais"
-            defaultValue={minValueReais}
-            type="number"
-            min={0}
-            step="0.01"
-            className="rounded border px-2 py-1"
-          />
+          <input name="minValueReais" defaultValue={minValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
         </label>
-        <label className="flex flex-col text-sm">
+        <label className="flex flex-col gap-1 text-sm text-slate-700">
           Valor máximo (R$)
-          <input
-            name="maxValueReais"
-            defaultValue={maxValueReais}
-            type="number"
-            min={0}
-            step="0.01"
-            className="rounded border px-2 py-1"
-          />
+          <input name="maxValueReais" defaultValue={maxValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
         </label>
-        <button type="submit" className="self-end rounded bg-black px-3 py-1 text-white">
+        <Button type="submit" size="sm">
           Filtrar
-        </button>
+        </Button>
       </form>
 
-      {state.status === "loading" && <p role="status">Carregando…</p>}
-      {state.status === "error" && (
-        <p role="alert" className="text-red-600">
-          {state.message}
-        </p>
-      )}
+      {state.status === "loading" && <LoadingState message="Carregando plantões…" />}
+      {state.status === "error" && <ErrorState message={state.message} />}
       {state.status === "ready" && state.data.items.length === 0 && (
-        <p role="status">Nenhum plantão encontrado com esses filtros.</p>
+        <EmptyState message="Nenhum plantão encontrado com esses filtros." />
       )}
       {state.status === "ready" && state.data.items.length > 0 && (
         <>
           <ul className="flex flex-col gap-3">
             {state.data.items.map((shift) => (
-              <li key={shift.id} className="rounded border p-3">
-                <Link
-                  href={`/medico/plantoes/${shift.id}?organizationId=${organizationId}`}
-                  className="font-medium underline"
-                >
-                  {shift.specialty}
+              <li key={shift.id}>
+                <Link href={`/medico/plantoes/${shift.id}?organizationId=${organizationId}`} className="block">
+                  <Card className="flex flex-wrap items-center justify-between gap-3 transition-colors hover:bg-slate-50">
+                    <div>
+                      <Badge variant="neutral" className="mb-1.5">
+                        {shift.specialty}
+                      </Badge>
+                      <div className="text-sm text-slate-600">
+                        {formatDateTime(shift.startsAt)} — {formatDateTime(shift.endsAt)}
+                      </div>
+                    </div>
+                    <div className="font-medium text-slate-900">{centsToReais(shift.valueCents)}</div>
+                  </Card>
                 </Link>
-                <div className="text-sm text-gray-600">
-                  {formatDateTime(shift.startsAt)} — {formatDateTime(shift.endsAt)} · {centsToReais(shift.valueCents)}
-                </div>
               </li>
             ))}
           </ul>
 
           <nav aria-label="Paginação" className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              className="rounded border px-3 py-1 disabled:opacity-50"
-            >
+            <Button type="button" variant="secondary" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
               Anterior
-            </button>
-            <span aria-live="polite">
+            </Button>
+            <span aria-live="polite" className="text-sm text-slate-600">
               Página {state.data.page} de {Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}
             </span>
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => goToPage(page + 1)}
               disabled={page * PAGE_SIZE >= state.data.total}
-              className="rounded border px-3 py-1 disabled:opacity-50"
             >
               Próxima
-            </button>
+            </Button>
           </nav>
         </>
       )}
