@@ -1,10 +1,25 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Queue, Worker, type ConnectionOptions, type Job } from "bullmq";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { TenantContextService } from "../organizations/tenant-context";
 import type { OutboxEventPayload } from "./outbox.service";
 
-export type NotificationHandler = (payload: OutboxEventPayload) => Promise<void>;
+export interface NotificationHandlerContext {
+  organizationId: string;
+  outboxEventId: string;
+  // Mesma transação (já com app.current_organization_id definido)
+  // que o processor usa para ler o evento e, ao final, marcá-lo
+  // COMPLETED. Handlers DEVEM reutilizar este tx (nunca abrir uma
+  // transação própria) para que seus efeitos colaterais e a
+  // conclusão do evento na outbox commitem ou sofram rollback juntos.
+  tx: Prisma.TransactionClient;
+}
+
+export type NotificationHandler = (
+  payload: OutboxEventPayload,
+  context: NotificationHandlerContext,
+) => Promise<void>;
 
 interface NotificationWorkerConfig {
   queueName: string;
@@ -51,7 +66,13 @@ const DEFAULT_QUEUE_NAME = "notifications";
 @Injectable()
 export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationWorkerService.name);
-  private readonly handlers = new Map<string, NotificationHandler>();
+  // Múltiplos handlers por eventType: um mesmo evento (ex.:
+  // application.decided) pode disparar mais de um efeito colateral
+  // (notificação in-app E email). Cada handler precisa ser
+  // idempotente-seguro por conta própria, pois se QUALQUER handler
+  // falhar, o job inteiro é reprocessado -- reexecutando também os
+  // handlers que já tinham tido sucesso na tentativa anterior.
+  private readonly handlers = new Map<string, NotificationHandler[]>();
 
   private config: NotificationWorkerConfig = {
     queueName: DEFAULT_QUEUE_NAME,
@@ -80,7 +101,9 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
   }
 
   registerHandler(eventType: string, handler: NotificationHandler): void {
-    this.handlers.set(eventType, handler);
+    const existing = this.handlers.get(eventType) ?? [];
+    existing.push(handler);
+    this.handlers.set(eventType, existing);
   }
 
   async onModuleInit(): Promise<void> {
@@ -218,11 +241,14 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
         // Já concluído (ou não mais reivindicado) por outra execução -- no-op idempotente.
         return;
       }
-      const handler = this.handlers.get(eventType);
-      if (!handler) {
+      const eventHandlers = this.handlers.get(eventType);
+      if (!eventHandlers || eventHandlers.length === 0) {
         throw new Error(`Nenhum handler registrado para eventType "${eventType}"`);
       }
-      await handler(event.payload as unknown as OutboxEventPayload);
+      const payload = event.payload as unknown as OutboxEventPayload;
+      for (const handler of eventHandlers) {
+        await handler(payload, { organizationId, outboxEventId, tx });
+      }
       await tx.outboxEvent.update({
         where: { id: outboxEventId },
         data: { status: "COMPLETED", attempts: job.attemptsMade },

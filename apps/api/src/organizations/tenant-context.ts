@@ -112,4 +112,26 @@ export class TenantContextService {
       return work(tx);
     });
   }
+
+  /**
+   * Executa `work` dentro de uma transação com
+   * app.current_actor_user_id definida via set_config, habilitando as
+   * políticas notification_recipient_select/update em notifications
+   * (T-5.1.3). Permite ao usuário ler e marcar como lida suas
+   * próprias notificações vindas de QUALQUER hospital (mesma
+   * necessidade cross-organização de withDoctorCalendarScope) — sem
+   * conceder acesso a nenhuma notificação de outro usuário.
+   */
+  async withNotificationRecipientScope<T>(
+    userId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!userId) {
+      throw new ForbiddenException("Usuário não resolvido — operação bloqueada (fail closed)");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_actor_user_id', ${userId}, true)`;
+      return work(tx);
+    });
+  }
 }

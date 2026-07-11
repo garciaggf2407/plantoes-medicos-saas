@@ -188,20 +188,31 @@ model Application {
 }
 
 /// Notificação in-app/email. Payload não deve conter PII sensível
-/// (ex.: evidência de CRM).
+/// (ex.: evidência de CRM, texto de justificativa).
+///
+/// sourceOutboxEventId rastreia o OutboxEvent (T-5.1.1) que originou
+/// esta notificação. A constraint única (sourceOutboxEventId, userId)
+/// torna a criação idempotente-segura: se o worker (T-5.1.2)
+/// reprocessar o mesmo evento (retry após falha parcial de um outro
+/// handler no mesmo job), tentar criar a mesma notificação de novo
+/// vira no-op (violação de constraint tratada como sucesso), nunca
+/// duplicata. NULL permanece distinto entre linhas no Postgres, então
+/// isso não afeta notificações futuras sem evento de origem.
 model Notification {
-  id             String              @id @default(uuid())
-  userId         String              @map("user_id")
-  organizationId String              @map("organization_id")
-  channel        NotificationChannel
-  type           String
-  payload        Json
-  readAt         DateTime?           @map("read_at")
-  createdAt      DateTime            @default(now()) @map("created_at")
+  id                  String              @id @default(uuid())
+  userId              String              @map("user_id")
+  organizationId      String              @map("organization_id")
+  channel             NotificationChannel
+  type                String
+  payload             Json
+  sourceOutboxEventId String?             @map("source_outbox_event_id")
+  readAt              DateTime?           @map("read_at")
+  createdAt           DateTime            @default(now()) @map("created_at")
 
   user         User         @relation(fields: [userId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
 
+  @@unique([sourceOutboxEventId, userId])
   @@index([userId, readAt])
   @@index([organizationId])
   @@map("notifications")

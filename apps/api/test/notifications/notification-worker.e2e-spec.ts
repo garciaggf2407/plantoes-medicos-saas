@@ -154,22 +154,25 @@ describe("NotificationWorkerService (integração — T-5.1.2, requer Redis loca
     expect(deadLetters.some((row) => row.id === event!.id)).toBe(true);
   });
 
-  it("evento sem handler registrado também esgota tentativas e vai para DEAD_LETTER (nenhum evento fica órfão silenciosamente)", async () => {
+  it("evento com eventType sem nenhum handler registrado também esgota tentativas e vai para DEAD_LETTER (nenhum evento fica órfão silenciosamente)", async () => {
+    // "shift.published" e "application.decided" sempre têm handler
+    // real registrado por InAppService (T-5.1.3), então este teste
+    // usa um eventType sintético (inserido direto via Prisma,
+    // contornando o union de tipos fechado de OutboxService.enqueue)
+    // para provar a garantia genérica do worker: qualquer eventType
+    // sem handler dead-letra, nunca fica pendente para sempre em
+    // silêncio.
     const marker = `worker-no-handler-${randomUUID()}`;
     await tenantContext.withTenantScope(orgA.id, (tx) =>
-      outbox.enqueue(tx, orgA.id, "application.decided", {
-        version: 1,
-        applicationId: randomUUID(),
-        shiftId: marker,
-        doctorProfileId: randomUUID(),
-        decision: "APPROVED",
+      tx.outboxEvent.create({
+        data: { organizationId: orgA.id, eventType: "test.unregistered-event-type", payload: { shiftId: marker } },
       }),
     );
     await worker.pollOnce([orgA.id]);
 
     await waitFor(async () => {
       const row = await tenantContext.withTenantScope(orgA.id, (tx) =>
-        tx.outboxEvent.findMany({ where: { organizationId: orgA.id, eventType: "application.decided" } }).then((rows) =>
+        tx.outboxEvent.findMany({ where: { organizationId: orgA.id, eventType: "test.unregistered-event-type" } }).then((rows) =>
           rows.find((r) => (r.payload as Record<string, unknown>).shiftId === marker),
         ),
       );

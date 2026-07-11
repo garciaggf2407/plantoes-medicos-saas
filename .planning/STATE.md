@@ -29,11 +29,19 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 2/9 |
+| E-5 Notificações e qualidade | IN PROGRESS | 3/9 |
 
 ## Current
-- Epic: E-5 in progress (T-5.1.1 outbox transacional, T-5.1.2 worker de notificação done)
-- Tests: 120/120 passing (apps/api), full workspace build green
+- Epic: E-5 in progress (T-5.1.1 outbox, T-5.1.2 worker, T-5.1.3 notificações in-app done)
+- Tests: 127/127 passing (apps/api), full workspace build green
+- Nota de arquitetura: NotificationWorkerService.registerHandler agora suporta múltiplos
+  handlers por eventType (array, não mais 1:1) — necessário porque InAppService (T-5.1.3) e o
+  futuro EmailAdapter (T-5.1.4) reagem aos MESMOS eventos ("shift.published",
+  "application.decided"). Handlers reutilizam o `tx` já aberto pelo processor (nunca abrem
+  transação própria) para que side-effects + conclusão do evento na outbox commitem juntos.
+  Notification ganhou `sourceOutboxEventId` (unique com userId) para que reprocessamento de um
+  job (handler irmão falhou, BullMQ repete o job inteiro) nunca duplique uma notificação já
+  criada por uma tentativa anterior.
 - Frontend verificado em navegador real (Playwright) três vezes:
   E-3 (listagem->detalhe->candidatura, calendário mês/semana) e
   E-4 (gestão de plantões CRUD, fila de revisão, calendário da

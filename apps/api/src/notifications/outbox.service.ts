@@ -3,13 +3,13 @@ import type { Prisma } from "@prisma/client";
 
 export type OutboxEventType = "shift.published" | "application.decided";
 
-interface ShiftPublishedPayload {
+export interface ShiftPublishedPayload {
   version: 1;
   shiftId: string;
   specialty: string;
 }
 
-interface ApplicationDecidedPayload {
+export interface ApplicationDecidedPayload {
   version: 1;
   applicationId: string;
   shiftId: string;
