@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type ShiftCalendarStatus = "DRAFT" | "PUBLISHED" | "PENDING" | "APPROVED" | "FILLED" | "CANCELLED" | "REJECTED";
 
@@ -17,16 +19,19 @@ export interface ShiftCalendarEvent {
 
 /**
  * Legenda de estados: cor É reforçada por texto/símbolo, nunca é o
- * único sinal (acessibilidade — daltonismo/leitores de tela).
+ * único sinal (acessibilidade — daltonismo/leitores de tela). Hex
+ * abaixo corresponde 1:1 às escalas Tailwind da paleta semântica
+ * (blue-600/emerald-600/amber-600/red-600/slate-400) — FullCalendar
+ * exige cor literal, não aceita className.
  */
-const STATUS_META: Record<ShiftCalendarStatus, { label: string; symbol: string; color: string }> = {
-  DRAFT: { label: "Rascunho", symbol: "◇", color: "#9ca3af" },
-  PUBLISHED: { label: "Publicado", symbol: "○", color: "#3b82f6" },
-  PENDING: { label: "Candidatura pendente", symbol: "◐", color: "#f59e0b" },
-  APPROVED: { label: "Aprovado", symbol: "●", color: "#16a34a" },
-  FILLED: { label: "Preenchido", symbol: "■", color: "#0f766e" },
-  CANCELLED: { label: "Cancelado", symbol: "✕", color: "#dc2626" },
-  REJECTED: { label: "Rejeitado", symbol: "✕", color: "#dc2626" },
+const STATUS_META: Record<ShiftCalendarStatus, { label: string; symbol: string; color: string; textClass: string }> = {
+  DRAFT: { label: "Rascunho", symbol: "◇", color: "#94a3b8", textClass: "text-slate-500" },
+  PUBLISHED: { label: "Publicado", symbol: "○", color: "#2563eb", textClass: "text-blue-600" },
+  PENDING: { label: "Candidatura pendente", symbol: "◐", color: "#d97706", textClass: "text-amber-600" },
+  APPROVED: { label: "Aprovado", symbol: "●", color: "#059669", textClass: "text-emerald-600" },
+  FILLED: { label: "Preenchido", symbol: "■", color: "#047857", textClass: "text-emerald-700" },
+  CANCELLED: { label: "Cancelado", symbol: "✕", color: "#dc2626", textClass: "text-red-600" },
+  REJECTED: { label: "Rejeitado", symbol: "✕", color: "#dc2626", textClass: "text-red-600" },
 };
 
 function formatDateTime(iso: string): string {
@@ -67,33 +72,35 @@ export function ShiftCalendar({ events }: { events: ShiftCalendarEvent[] }) {
   return (
     <div>
       <div role="group" aria-label="Visão do calendário" className="mb-3 flex gap-2">
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant={view === "dayGridMonth" ? "primary" : "secondary"}
           onClick={() => setView("dayGridMonth")}
           aria-pressed={view === "dayGridMonth"}
-          className={`rounded border px-3 py-1 ${view === "dayGridMonth" ? "bg-black text-white" : ""}`}
         >
           Mês
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          size="sm"
+          variant={view === "timeGridWeek" ? "primary" : "secondary"}
           onClick={() => setView("timeGridWeek")}
           aria-pressed={view === "timeGridWeek"}
-          className={`rounded border px-3 py-1 ${view === "timeGridWeek" ? "bg-black text-white" : ""}`}
         >
           Semana
-        </button>
+        </Button>
       </div>
 
       <ul aria-label="Legenda de estados do plantão" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {Object.entries(STATUS_META).map(([status, meta]) => (
-          <li key={status} style={{ color: meta.color }}>
+          <li key={status} className={meta.textClass}>
             <span aria-hidden="true">{meta.symbol}</span> {meta.label}
           </li>
         ))}
       </ul>
 
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
         <FullCalendar
           key={view}
           plugins={[dayGridPlugin, timeGridPlugin]}
@@ -105,29 +112,33 @@ export function ShiftCalendar({ events }: { events: ShiftCalendarEvent[] }) {
         />
       </div>
 
-      <h2 className="mt-6 mb-2 text-sm font-semibold">Lista de plantões (alternativa textual)</h2>
+      <h2 className="mt-6 mb-2 text-sm font-semibold text-slate-900">Lista de plantões (alternativa textual)</h2>
       {sortedForList.length === 0 ? (
-        <p role="status">Nenhum plantão no período.</p>
+        <EmptyState message="Nenhum plantão no período." />
       ) : (
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">Lista de plantões equivalente ao calendário visual, navegável por teclado</caption>
           <thead>
-            <tr className="border-b text-left">
-              <th scope="col" className="py-1 pr-3">Especialidade</th>
-              <th scope="col" className="py-1 pr-3">Início</th>
-              <th scope="col" className="py-1 pr-3">Fim</th>
-              <th scope="col" className="py-1">Estado</th>
+            <tr className="border-b border-slate-200 text-left">
+              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Especialidade</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Início</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Fim</th>
+              <th scope="col" className="py-1.5 font-medium text-slate-700">Estado</th>
             </tr>
           </thead>
           <tbody>
             {sortedForList.map((event) => {
               const meta = event.status ? STATUS_META[event.status] : undefined;
               return (
-                <tr key={event.id} tabIndex={0} className="border-b focus:bg-gray-100">
-                  <td className="py-1 pr-3">{event.title}</td>
-                  <td className="py-1 pr-3">{formatDateTime(event.startsAt)}</td>
-                  <td className="py-1 pr-3">{formatDateTime(event.endsAt)}</td>
-                  <td className="py-1" style={{ color: meta?.color }}>
+                <tr
+                  key={event.id}
+                  tabIndex={0}
+                  className="border-b border-slate-100 focus:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
+                >
+                  <td className="py-1.5 pr-3 text-slate-900">{event.title}</td>
+                  <td className="py-1.5 pr-3 text-slate-600">{formatDateTime(event.startsAt)}</td>
+                  <td className="py-1.5 pr-3 text-slate-600">{formatDateTime(event.endsAt)}</td>
+                  <td className={`py-1.5 ${meta?.textClass ?? "text-slate-600"}`}>
                     {meta ? `${meta.symbol} ${meta.label}` : "—"}
                   </td>
                 </tr>

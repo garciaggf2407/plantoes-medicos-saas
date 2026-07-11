@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { DoctorCalendar } from "./doctor-calendar";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function DoctorCalendarPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Minha agenda</h1>
-      <Suspense fallback={<p role="status">Carregando…</p>}>
+      <PageHeader title="Minha agenda" description="Seus plantões aprovados, em visão mensal ou semanal." />
+      <Suspense fallback={<LoadingState />}>
         <DoctorCalendar />
       </Suspense>
     </div>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { CalendarEventDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { ShiftCalendar, type ShiftCalendarEvent } from "@/components/shift-calendar";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 /** Janela fixa (mês anterior a +3 meses) — cobre navegação mensal/semanal sem refetch dinâmico. */
 function defaultRange(): { from: string; to: string } {
@@ -39,8 +41,8 @@ export function DoctorCalendar() {
       });
   }, []);
 
-  if (state.status === "loading") return <p role="status">Carregando…</p>;
-  if (state.status === "error") return <p role="alert" className="text-red-600">{state.message}</p>;
+  if (state.status === "loading") return <LoadingState />;
+  if (state.status === "error") return <ErrorState message={state.message} />;
 
   return <ShiftCalendar events={state.events} />;
 }
