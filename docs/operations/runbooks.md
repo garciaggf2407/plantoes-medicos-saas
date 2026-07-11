@@ -34,8 +34,10 @@ antes do primeiro deploy em produção. Nenhum contato real está hardcoded aqui
      dev/staging/produção)
    - `COOKIE_SECURE=true` (produção sempre roda atrás de HTTPS)
    - `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI` (provedor
-     real — sem esses valores, a aplicação usa o `FakeOidcProvider`, que **nunca** deve rodar em
-     produção; ver seção 5 abaixo)
+     real — sem esses valores, a aplicação recusa subir, a menos que `ALLOW_FAKE_OIDC=true`
+     esteja setado. `ALLOW_FAKE_OIDC` **nunca** deve existir em produção: com ele, a aplicação usa
+     o `FakeOidcProvider`, que aceita login auto-atestado sem nenhuma verificação; ver seção 5
+     abaixo)
    - `REDIS_URL`, `NOTIFICATIONS_WORKER_ENABLED=true`
    - `EMAIL_PROVIDER` (trocar de `console` para um provider real assim que uma conta de envio de
      email existir — ver `apps/api/src/notifications/email.adapter.ts`)
