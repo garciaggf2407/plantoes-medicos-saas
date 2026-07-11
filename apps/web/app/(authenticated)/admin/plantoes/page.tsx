@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { AdminShifts } from "./admin-shifts";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function AdminShiftsPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Gestão de plantões</h1>
-      <Suspense fallback={<p role="status">Carregando…</p>}>
+      <PageHeader title="Gestão de plantões" description="Crie, publique, edite e cancele os plantões da sua unidade." />
+      <Suspense fallback={<LoadingState />}>
         <AdminShifts />
       </Suspense>
     </div>

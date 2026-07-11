@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import type { AdminShiftDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
+import { Card } from "@/components/ui/card";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Rascunho",
@@ -11,6 +17,16 @@ const STATUS_LABEL: Record<string, string> = {
   FILLED: "Preenchido",
   CANCELLED: "Cancelado",
 };
+
+const STATUS_BADGE: Record<string, BadgeVariant> = {
+  DRAFT: "neutral",
+  PUBLISHED: "pending",
+  FILLED: "positive",
+  CANCELLED: "negative",
+};
+
+const INPUT_CLASS =
+  "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -113,125 +129,131 @@ export function AdminShifts() {
     await reload();
   }
 
-  if (meState.status === "loading") return <p role="status">Carregando…</p>;
-  if (meState.status === "error") return <p role="alert" className="text-red-600">Não foi possível carregar seus dados.</p>;
+  if (meState.status === "loading") return <LoadingState />;
+  if (meState.status === "error") return <ErrorState message="Não foi possível carregar seus dados." />;
 
   return (
     <div>
-      <h2 className="mb-2 text-sm font-semibold">Novo plantão</h2>
-      <form onSubmit={handleCreate} className="mb-6 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col text-sm">
-          Especialidade
-          <input
-            required
-            type="text"
-            value={createForm.specialty}
-            onChange={(e) => setCreateForm({ ...createForm, specialty: e.target.value })}
-            className="rounded border px-2 py-1"
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          Valor (R$)
-          <input
-            required
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={createForm.valueReais}
-            onChange={(e) => setCreateForm({ ...createForm, valueReais: e.target.value })}
-            className="rounded border px-2 py-1"
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          Início
-          <input
-            required
-            type="datetime-local"
-            value={createForm.startsAt}
-            onChange={(e) => setCreateForm({ ...createForm, startsAt: e.target.value })}
-            className="rounded border px-2 py-1"
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          Fim
-          <input
-            required
-            type="datetime-local"
-            value={createForm.endsAt}
-            onChange={(e) => setCreateForm({ ...createForm, endsAt: e.target.value })}
-            className="rounded border px-2 py-1"
-          />
-        </label>
-        <button type="submit" className="rounded bg-black px-3 py-1 text-white">
-          Criar (rascunho)
-        </button>
-      </form>
-      {formError && <p role="alert" className="mb-4 text-red-600">{formError}</p>}
+      <Card className="mb-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo plantão</h2>
+        <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Especialidade
+            <input
+              required
+              type="text"
+              value={createForm.specialty}
+              onChange={(e) => setCreateForm({ ...createForm, specialty: e.target.value })}
+              className={INPUT_CLASS}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Valor (R$)
+            <input
+              required
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={createForm.valueReais}
+              onChange={(e) => setCreateForm({ ...createForm, valueReais: e.target.value })}
+              className={INPUT_CLASS}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Início
+            <input
+              required
+              type="datetime-local"
+              value={createForm.startsAt}
+              onChange={(e) => setCreateForm({ ...createForm, startsAt: e.target.value })}
+              className={INPUT_CLASS}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-slate-700">
+            Fim
+            <input
+              required
+              type="datetime-local"
+              value={createForm.endsAt}
+              onChange={(e) => setCreateForm({ ...createForm, endsAt: e.target.value })}
+              className={INPUT_CLASS}
+            />
+          </label>
+          <Button type="submit" size="sm">
+            Criar (rascunho)
+          </Button>
+        </form>
+        {formError && (
+          <div className="mt-3">
+            <ErrorState message={formError} />
+          </div>
+        )}
+      </Card>
 
-      {error && <p role="alert" className="text-red-600">{error}</p>}
-      {!error && shifts === null && <p role="status">Carregando plantões…</p>}
-      {!error && shifts !== null && shifts.length === 0 && <p role="status">Nenhum plantão cadastrado ainda.</p>}
+      {error && <ErrorState message={error} />}
+      {!error && shifts === null && <LoadingState message="Carregando plantões…" />}
+      {!error && shifts !== null && shifts.length === 0 && <EmptyState message="Nenhum plantão cadastrado ainda." />}
       {!error && shifts !== null && shifts.length > 0 && (
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th scope="col" className="py-1 pr-3">Especialidade</th>
-              <th scope="col" className="py-1 pr-3">Início</th>
-              <th scope="col" className="py-1 pr-3">Fim</th>
-              <th scope="col" className="py-1 pr-3">Valor</th>
-              <th scope="col" className="py-1 pr-3">Status</th>
-              <th scope="col" className="py-1">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shifts.map((shift) =>
-              editingId === shift.id ? (
-                <EditRow key={shift.id} shift={shift} onCancel={() => setEditingId(null)} onSave={(form) => handleSaveEdit(shift.id, form)} />
-              ) : (
-                <tr key={shift.id} className="border-b">
-                  <td className="py-1 pr-3">{shift.specialty}</td>
-                  <td className="py-1 pr-3">{new Date(shift.startsAt).toLocaleString("pt-BR")}</td>
-                  <td className="py-1 pr-3">{new Date(shift.endsAt).toLocaleString("pt-BR")}</td>
-                  <td className="py-1 pr-3">{centsToReais(shift.valueCents)}</td>
-                  <td className="py-1 pr-3">{STATUS_LABEL[shift.status] ?? shift.status}</td>
-                  <td className="py-1">
-                    <div className="flex flex-wrap gap-2">
-                      {shift.status === "DRAFT" && (
-                        <button type="button" onClick={() => handlePublish(shift.id)} className="rounded border px-2 py-0.5">
-                          Publicar
-                        </button>
-                      )}
-                      {(shift.status === "DRAFT" || shift.status === "PUBLISHED") && (
-                        <button type="button" onClick={() => setEditingId(shift.id)} className="rounded border px-2 py-0.5">
-                          Editar
-                        </button>
-                      )}
-                      {(shift.status === "DRAFT" || shift.status === "PUBLISHED") &&
-                        (confirmingCancelId === shift.id ? (
-                          <span className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleCancelConfirmed(shift.id)}
-                              className="rounded border border-red-600 px-2 py-0.5 text-red-600"
-                            >
-                              Confirmar cancelamento
-                            </button>
-                            <button type="button" onClick={() => setConfirmingCancelId(null)} className="rounded border px-2 py-0.5">
-                              Voltar
-                            </button>
-                          </span>
-                        ) : (
-                          <button type="button" onClick={() => setConfirmingCancelId(shift.id)} className="rounded border px-2 py-0.5">
-                            Cancelar
-                          </button>
-                        ))}
-                    </div>
-                  </td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left">
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Especialidade</th>
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Início</th>
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Fim</th>
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Valor</th>
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Status</th>
+                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shifts.map((shift) =>
+                editingId === shift.id ? (
+                  <EditRow key={shift.id} shift={shift} onCancel={() => setEditingId(null)} onSave={(form) => handleSaveEdit(shift.id, form)} />
+                ) : (
+                  <tr key={shift.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-3 py-2 text-slate-900">{shift.specialty}</td>
+                    <td className="px-3 py-2 text-slate-600">{new Date(shift.startsAt).toLocaleString("pt-BR")}</td>
+                    <td className="px-3 py-2 text-slate-600">{new Date(shift.endsAt).toLocaleString("pt-BR")}</td>
+                    <td className="px-3 py-2 text-slate-900">{centsToReais(shift.valueCents)}</td>
+                    <td className="px-3 py-2">
+                      <Badge variant={STATUS_BADGE[shift.status] ?? "neutral"}>{STATUS_LABEL[shift.status] ?? shift.status}</Badge>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        {shift.status === "DRAFT" && (
+                          <Button type="button" size="sm" variant="secondary" onClick={() => handlePublish(shift.id)}>
+                            Publicar
+                          </Button>
+                        )}
+                        {(shift.status === "DRAFT" || shift.status === "PUBLISHED") && (
+                          <Button type="button" size="sm" variant="secondary" onClick={() => setEditingId(shift.id)}>
+                            Editar
+                          </Button>
+                        )}
+                        {(shift.status === "DRAFT" || shift.status === "PUBLISHED") &&
+                          (confirmingCancelId === shift.id ? (
+                            <span className="flex gap-2">
+                              <Button type="button" size="sm" variant="danger" onClick={() => handleCancelConfirmed(shift.id)}>
+                                Confirmar cancelamento
+                              </Button>
+                              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingCancelId(null)}>
+                                Voltar
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingCancelId(shift.id)}>
+                              Cancelar
+                            </Button>
+                          ))}
+                      </div>
+                    </td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -254,28 +276,36 @@ function EditRow({
   });
 
   return (
-    <tr className="border-b bg-gray-50">
-      <td className="py-1 pr-3">
-        <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} className="w-full rounded border px-1" />
+    <tr className="border-b border-slate-100 bg-slate-50 last:border-0">
+      <td className="px-3 py-2">
+        <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} className={`w-full ${INPUT_CLASS}`} />
       </td>
-      <td className="py-1 pr-3">
-        <input type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className="rounded border px-1" />
+      <td className="px-3 py-2">
+        <input type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className={INPUT_CLASS} />
       </td>
-      <td className="py-1 pr-3">
-        <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className="rounded border px-1" />
+      <td className="px-3 py-2">
+        <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className={INPUT_CLASS} />
       </td>
-      <td className="py-1 pr-3">
-        <input type="number" step="0.01" value={form.valueReais} onChange={(e) => setForm({ ...form, valueReais: e.target.value })} className="w-20 rounded border px-1" />
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          step="0.01"
+          value={form.valueReais}
+          onChange={(e) => setForm({ ...form, valueReais: e.target.value })}
+          className={`w-20 ${INPUT_CLASS}`}
+        />
       </td>
-      <td className="py-1 pr-3">{STATUS_LABEL[shift.status] ?? shift.status}</td>
-      <td className="py-1">
+      <td className="px-3 py-2">
+        <Badge variant={STATUS_BADGE[shift.status] ?? "neutral"}>{STATUS_LABEL[shift.status] ?? shift.status}</Badge>
+      </td>
+      <td className="px-3 py-2">
         <div className="flex gap-2">
-          <button type="button" onClick={() => onSave(form)} className="rounded bg-black px-2 py-0.5 text-white">
+          <Button type="button" size="sm" onClick={() => onSave(form)}>
             Salvar
-          </button>
-          <button type="button" onClick={onCancel} className="rounded border px-2 py-0.5">
+          </Button>
+          <Button type="button" size="sm" variant="secondary" onClick={onCancel}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </td>
     </tr>
