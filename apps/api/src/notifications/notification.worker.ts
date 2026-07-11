@@ -29,6 +29,7 @@ interface NotificationWorkerConfig {
   backoffMs: number;
   intervalMs: number;
   batchSize: number;
+  staleProcessingMs: number;
 }
 
 interface NotificationJobData {
@@ -82,6 +83,16 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     backoffMs: Number(process.env.NOTIFICATIONS_BACKOFF_MS ?? 2000),
     intervalMs: Number(process.env.NOTIFICATIONS_POLL_INTERVAL_MS ?? 1000),
     batchSize: 20,
+    // Uma linha presa em PROCESSING (worker morreu entre claimBatch
+    // commitar e o job correspondente ser enfileirado no Redis, ou o
+    // Redis foi perdido depois do claim) nunca era reivindicada de
+    // volta -- claimBatch só olha PENDING. O runbook já documentava
+    // essa lacuna como remediação manual; agora é automática: toda
+    // passada de poll primeiro devolve para PENDING qualquer linha
+    // PROCESSING mais velha que este limiar. Seguro porque cada
+    // handler já é idempotente por desenho (T-5.1.3/T-5.1.4). Bug
+    // real encontrado em auditoria.
+    staleProcessingMs: Number(process.env.NOTIFICATIONS_STALE_PROCESSING_MS ?? 5 * 60 * 1000),
   };
 
   private queue?: Queue<NotificationJobData>;
@@ -185,6 +196,12 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
         : await this.prisma.organization.findMany({ select: { id: true } });
       let claimedTotal = 0;
       for (const { id: organizationId } of organizations) {
+        const reclaimed = await this.reclaimStaleProcessing(organizationId);
+        if (reclaimed > 0) {
+          this.logger.warn(
+            `Reivindicou ${reclaimed} evento(s) presos em PROCESSING (organização ${organizationId})`,
+          );
+        }
         const claimed = await this.claimBatch(organizationId);
         for (const event of claimed) {
           await this.queue.add(
@@ -205,6 +222,33 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     } finally {
       this.polling = false;
     }
+  }
+
+  /**
+   * Devolve para PENDING qualquer linha PROCESSING mais velha que
+   * staleProcessingMs — reclaim automático da lacuna de durabilidade
+   * documentada em docs/operations/runbooks.md (worker morto entre o
+   * claim e o enqueue no Redis). Usa a mesma trava FOR UPDATE SKIP
+   * LOCKED de claimBatch para nunca disputar linha com outro worker
+   * fazendo a mesma varredura concorrentemente.
+   */
+  private async reclaimStaleProcessing(organizationId: string): Promise<number> {
+    const staleSeconds = Math.floor(this.config.staleProcessingMs / 1000);
+    const reclaimed = await this.tenantContext.withTenantScope(organizationId, (tx) =>
+      tx.$queryRaw<{ id: string }[]>`
+        UPDATE outbox_events
+        SET status = 'PENDING', available_at = (now() AT TIME ZONE 'UTC')
+        WHERE id IN (
+          SELECT id FROM outbox_events
+          WHERE organization_id = ${organizationId}
+            AND status = 'PROCESSING'
+            AND updated_at < (now() AT TIME ZONE 'UTC') - (${staleSeconds} * interval '1 second')
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id
+      `,
+    );
+    return reclaimed.length;
   }
 
   private async claimBatch(organizationId: string): Promise<ClaimedOutboxEvent[]> {

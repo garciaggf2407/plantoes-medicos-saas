@@ -20,6 +20,24 @@ export interface ApplicationDecidedPayload {
 
 export type OutboxEventPayload = ShiftPublishedPayload | ApplicationDecidedPayload;
 
+/**
+ * payload.version é declarado no tipo (literal 1) mas o valor real
+ * lido do banco é `unknown` em runtime (coluna JSON) — o cast em
+ * processJob não garante nada de fato. Handlers previamente faziam
+ * `as ShiftPublishedPayload`/`as ApplicationDecidedPayload` sem checar
+ * version, então um evento antigo (versão diferente, campos
+ * renomeados/movidos) seria lido com campos `undefined` silenciosos
+ * em vez de um erro claro. Bug real encontrado em auditoria — todo
+ * handler deve chamar isto antes de desestruturar o payload.
+ */
+export function assertPayloadVersion(payload: OutboxEventPayload, expected: number, eventType: string): void {
+  if (payload.version !== expected) {
+    throw new Error(
+      `Payload de "${eventType}" com version=${payload.version}, esperado ${expected} — handler não sabe ler este formato`,
+    );
+  }
+}
+
 /** Metadado interno gravado junto do payload — nunca parte do contrato visível ao chamador de enqueue(). */
 export interface StoredEventPayload {
   _trace?: TraceCarrier;

@@ -5,7 +5,7 @@ import {
   NotificationWorkerService,
   type NotificationHandlerContext,
 } from "./notification.worker";
-import type { ApplicationDecidedPayload, OutboxEventPayload, ShiftPublishedPayload } from "./outbox.service";
+import { assertPayloadVersion, type ApplicationDecidedPayload, type OutboxEventPayload, type ShiftPublishedPayload } from "./outbox.service";
 
 export interface NotificationListItem {
   id: string;
@@ -128,6 +128,7 @@ export class InAppService implements OnModuleInit {
   }
 
   private async handleShiftPublished(payload: OutboxEventPayload, ctx: NotificationHandlerContext): Promise<void> {
+    assertPayloadVersion(payload, 1, "shift.published");
     const { shiftId, specialty } = payload as ShiftPublishedPayload;
     const compatibleDoctors = await ctx.tx.doctorProfile.findMany({
       where: {
@@ -148,6 +149,7 @@ export class InAppService implements OnModuleInit {
   }
 
   private async handleApplicationDecided(payload: OutboxEventPayload, ctx: NotificationHandlerContext): Promise<void> {
+    assertPayloadVersion(payload, 1, "application.decided");
     const { applicationId, shiftId, doctorProfileId, decision } = payload as ApplicationDecidedPayload;
     const doctorProfile = await ctx.tx.doctorProfile.findUnique({
       where: { id: doctorProfileId },

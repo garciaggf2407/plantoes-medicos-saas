@@ -137,6 +137,62 @@ export class ReviewApplicationUseCase {
         return updated;
       }
 
+      // Relê o plantão (já travado por FOR UPDATE acima) para garantir
+      // que ele continua PUBLISHED antes de aprovar. Sem isso, uma
+      // candidatura PENDING "órfã" (deixada para trás porque cancelar
+      // um plantão não rejeitava suas candidaturas pendentes) podia
+      // ser aprovada mesmo com o plantão já CANCELLED, revivendo-o
+      // silenciosamente para FILLED — uma transição fora da máquina de
+      // estados de ShiftCommandsService. Bug real encontrado em
+      // auditoria; ver .planning/STATE.md.
+      const shift = await tx.shift.findUnique({ where: { id: application.shiftId } });
+      if (!shift || shift.status !== ShiftStatus.PUBLISHED) {
+        throw new ConflictException({
+          error: "shift_not_available",
+          message: "Este plantão não está mais disponível para aprovação",
+        });
+      }
+
+      // Conflito de agenda: a checagem em apply-to-shift.use-case.ts só
+      // olha candidaturas já APROVADAS no momento da candidatura. Duas
+      // candidaturas PENDING para plantões sobrepostos passam essa
+      // checagem (nenhuma delas é APPROVED ainda) e só colidiriam se
+      // reverificadas aqui, no momento da decisão -- sem isso, um
+      // médico pode ser aprovado para dois plantões com o mesmo
+      // horário. Bug real encontrado em auditoria.
+      const overlapping = await tx.application.findFirst({
+        where: {
+          doctorProfileId: application.doctorProfileId,
+          organizationId,
+          status: ApplicationStatus.APPROVED,
+          id: { not: applicationId },
+          shift: { startsAt: { lt: shift.endsAt }, endsAt: { gt: shift.startsAt } },
+        },
+      });
+      if (overlapping) {
+        throw new ConflictException({
+          error: "schedule_conflict",
+          message: "Médico já possui outro plantão aprovado que conflita com este horário",
+        });
+      }
+
+      // Credencial pode ter sido revogada/expirada depois da
+      // candidatura (só era checada em apply-to-shift.use-case.ts, uma
+      // única vez, no passado). Sem reconferir aqui, um médico com
+      // credencial hoje inválida pode ser aprovado. Bug real
+      // encontrado em auditoria.
+      const credential = await tx.credential.findUnique({
+        where: {
+          doctorProfileId_organizationId: { doctorProfileId: application.doctorProfileId, organizationId },
+        },
+      });
+      if (!credential || credential.status !== "APPROVED") {
+        throw new ConflictException({
+          error: "credential_not_approved",
+          message: "Credencial do médico não está mais aprovada para este hospital",
+        });
+      }
+
       let updated;
       try {
         updated = await tx.application.update({

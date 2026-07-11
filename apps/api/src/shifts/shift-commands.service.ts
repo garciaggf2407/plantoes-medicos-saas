@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { ShiftStatus, UserRole } from "@prisma/client";
+import { ApplicationStatus, ShiftStatus, UserRole } from "@prisma/client";
 import { TenantContextService } from "../organizations/tenant-context";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
 import { OutboxService } from "../notifications/outbox.service";
@@ -134,6 +134,23 @@ export class ShiftCommandsService {
         throw new BadRequestException(`Plantão em estado ${existing.status} não pode ser editado`);
       }
 
+      // Um plantão PUBLISHED com candidatura ativa (PENDING ou
+      // APPROVED) não pode ter valor/horário/especialidade alterado
+      // por baixo do médico que já se candidatou nesses termos --
+      // isso mudaria silenciosamente o que ele viu ao se candidatar,
+      // sem revalidação nem aviso. Bug real encontrado em auditoria;
+      // a correção exige cancelar e recriar em vez de editar.
+      if (existing.status === ShiftStatus.PUBLISHED) {
+        const hasActiveApplication = await tx.application.findFirst({
+          where: { shiftId, status: { in: [ApplicationStatus.PENDING, ApplicationStatus.APPROVED] } },
+        });
+        if (hasActiveApplication) {
+          throw new BadRequestException(
+            "Plantão publicado com candidatura ativa não pode ser editado — cancele e crie um novo plantão",
+          );
+        }
+      }
+
       const nextStartsAt = startsAt ?? existing.startsAt;
       const nextEndsAt = endsAt ?? existing.endsAt;
       if (nextEndsAt.getTime() <= nextStartsAt.getTime()) {
@@ -164,11 +181,26 @@ export class ShiftCommandsService {
     const organizationId = this.requireAdmin(actor);
 
     return this.tenantContext.withTenantScope(organizationId, async (tx) => {
+      const preliminary = await tx.shift.findUnique({ where: { id: shiftId } });
+      if (!preliminary) {
+        throw new NotFoundException("Plantão não encontrado");
+      }
+      this.tenantContext.assertResourceBelongsToOrganization(preliminary.organizationId, organizationId);
+
+      // Trava a linha ANTES de reler o status. Sem isso, duas
+      // requisições concorrentes de transição (ex.: publish duplo)
+      // podem ambas ler o mesmo status de origem e ambas passarem em
+      // VALID_TRANSITIONS, produzindo efeitos duplicados -- no caso de
+      // publish, dois eventos shift.published distintos, cada um
+      // disparando notificação/email duplicado para cada médico
+      // compatível. Mesmo padrão de lock-ordering já usado em
+      // ReviewApplicationUseCase. Bug real encontrado em auditoria.
+      await tx.$queryRaw`SELECT id FROM shifts WHERE id = ${shiftId} FOR UPDATE`;
+
       const existing = await tx.shift.findUnique({ where: { id: shiftId } });
       if (!existing) {
         throw new NotFoundException("Plantão não encontrado");
       }
-      this.tenantContext.assertResourceBelongsToOrganization(existing.organizationId, organizationId);
 
       const allowed = VALID_TRANSITIONS[existing.status];
       if (!allowed.includes(next)) {
@@ -185,6 +217,41 @@ export class ShiftCommandsService {
           shiftId: updated.id,
           specialty: updated.specialty,
         });
+      }
+
+      if (next === ShiftStatus.CANCELLED) {
+        // Cancelar um plantão publicado deixava candidaturas PENDING
+        // órfãs: nunca eram rejeitadas, o médico nunca era avisado, e
+        // uma aprovação tardia dessa candidatura conseguia ressuscitar
+        // o plantão cancelado para FILLED (ver a checagem de
+        // shift.status em ReviewApplicationUseCase). Bug real
+        // encontrado em auditoria -- corrigido rejeitando toda
+        // candidatura PENDING deste plantão, na mesma transação do
+        // cancelamento, e notificando cada candidato via outbox.
+        const pending = await tx.application.findMany({
+          where: { shiftId, status: ApplicationStatus.PENDING },
+          select: { id: true, doctorProfileId: true },
+        });
+        if (pending.length > 0) {
+          await tx.application.updateMany({
+            where: { shiftId, status: ApplicationStatus.PENDING },
+            data: {
+              status: ApplicationStatus.REJECTED,
+              decidedByUserId: actor.id,
+              decidedAt: new Date(),
+              justification: "Plantão cancelado pelo hospital",
+            },
+          });
+          for (const application of pending) {
+            await this.outbox.enqueue(tx, organizationId, "application.decided", {
+              version: 1,
+              applicationId: application.id,
+              shiftId,
+              doctorProfileId: application.doctorProfileId,
+              decision: "REJECTED",
+            });
+          }
+        }
       }
 
       return updated;

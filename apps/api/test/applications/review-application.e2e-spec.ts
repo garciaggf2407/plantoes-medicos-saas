@@ -292,4 +292,65 @@ describe("POST /applications/:id/review (integração — decisão de candidatur
     const shift = await tenantContext.withTenantScope(orgA.id, (tx) => tx.shift.findUniqueOrThrow({ where: { id: shiftId } }));
     expect(shift.status).toBe("FILLED");
   });
+
+  it("bug real corrigido (auditoria): médico não pode ser aprovado em dois plantões com horário sobreposto", async () => {
+    // apply-to-shift.use-case.ts só bloqueia conflito contra
+    // candidaturas já APROVADAS -- duas candidaturas PENDING para
+    // plantões sobrepostos passam essa checagem (nenhuma é APPROVED
+    // ainda). Sem revalidar no momento da decisão, aprovar as duas
+    // separadamente resultava em duplo agendamento físico.
+    const doctor = await makeDoctorWithApprovedCredential("Cardiologia");
+    const shiftA = await createShift({
+      startsAt: new Date("2026-11-01T10:00:00Z"),
+      endsAt: new Date("2026-11-01T12:00:00Z"),
+    });
+    const shiftB = await createShift({
+      startsAt: new Date("2026-11-01T11:00:00Z"),
+      endsAt: new Date("2026-11-01T13:00:00Z"),
+    });
+    const appA = await applyAsDoctor(doctor.subject, shiftA);
+    const appB = await applyAsDoctor(doctor.subject, shiftB);
+
+    const firstApproval = await request(app.getHttpServer())
+      .post(`/applications/${appA}/review`)
+      .set("Cookie", cookieFor(adminA.subject))
+      .send({ organizationId: orgA.id, decision: "APPROVED", justification: "Primeiro plantão aprovado" });
+    expect(firstApproval.status).toBe(201);
+
+    const secondApproval = await request(app.getHttpServer())
+      .post(`/applications/${appB}/review`)
+      .set("Cookie", cookieFor(adminA.subject))
+      .send({ organizationId: orgA.id, decision: "APPROVED", justification: "Segundo plantão, sobreposto" });
+    expect(secondApproval.status).toBe(409);
+    expect(secondApproval.body.message?.error ?? secondApproval.body.error).toBe("schedule_conflict");
+
+    const appBRow = await tenantContext.withTenantScope(orgA.id, (tx) => tx.application.findUniqueOrThrow({ where: { id: appB } }));
+    expect(appBRow.status).toBe("PENDING");
+
+    const shiftBRow = await tenantContext.withTenantScope(orgA.id, (tx) => tx.shift.findUniqueOrThrow({ where: { id: shiftB } }));
+    expect(shiftBRow.status).toBe("PUBLISHED");
+  });
+
+  it("bug real corrigido (auditoria): candidatura não pode ser aprovada se a credencial do médico foi revogada depois da candidatura", async () => {
+    const doctor = await makeDoctorWithApprovedCredential("Cardiologia");
+    const shiftId = await createShift();
+    const applicationId = await applyAsDoctor(doctor.subject, shiftId);
+
+    await tenantContext.withTenantScope(orgA.id, (tx) =>
+      tx.credential.update({
+        where: { doctorProfileId_organizationId: { doctorProfileId: doctor.profileId, organizationId: orgA.id } },
+        data: { status: "REJECTED" },
+      }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .post(`/applications/${applicationId}/review`)
+      .set("Cookie", cookieFor(adminA.subject))
+      .send({ organizationId: orgA.id, decision: "APPROVED", justification: "Aprovando sem reconferir credencial" });
+    expect(res.status).toBe(409);
+    expect(res.body.message?.error ?? res.body.error).toBe("credential_not_approved");
+
+    const shift = await tenantContext.withTenantScope(orgA.id, (tx) => tx.shift.findUniqueOrThrow({ where: { id: shiftId } }));
+    expect(shift.status).toBe("PUBLISHED");
+  });
 });

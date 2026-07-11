@@ -32,7 +32,23 @@ export interface SearchShiftsResult {
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
+// Mesma disciplina de shift-commands.service.ts (ISO_UTC_PATTERN):
+// exige designador de fuso explícito ("Z" ou +HH:mm/-HH:mm). Sem
+// isso, `new Date("2026-08-01T00:00:00")` (sem offset) é interpretado
+// no fuso LOCAL DO SERVIDOR pelo motor JS, enquanto startsAt/endsAt
+// são sempre armazenados/comparados em UTC -- num servidor não-UTC,
+// isso desloca o limite from/to pelo offset do servidor, incluindo ou
+// excluindo plantões incorretamente perto da borda do filtro. Mesma
+// classe de bug já corrigida no worker (T-5.1.2, comparação de
+// available_at); aqui na busca era um bug real ainda não corrigido,
+// encontrado em auditoria.
+// eslint-disable-next-line security/detect-unsafe-regex
+const ISO_UTC_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
 function parseUtcDateFilter(value: string, field: string): Date {
+  if (!ISO_UTC_PATTERN.test(value)) {
+    throw new BadRequestException(`${field} deve ser ISO-8601 com timezone explícito (ex.: 2026-08-01T08:00:00Z)`);
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     throw new BadRequestException(`${field} não é uma data válida`);
