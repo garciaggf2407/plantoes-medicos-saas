@@ -133,4 +133,20 @@ export class SearchShiftsQuery {
     }
     return shift;
   }
+
+  /**
+   * Lista TODOS os plantões do hospital ativo do admin, em qualquer
+   * status (DRAFT/PUBLISHED/FILLED/CANCELLED) — ao contrário de
+   * `execute`, que só mostra PUBLISHED para descoberta pelo médico.
+   * Usada pela tela de gestão administrativa.
+   */
+  async listForAdmin(organizationId: string) {
+    return this.tenantContext.withTenantScope(organizationId, (tx) =>
+      tx.shift.findMany({
+        where: { organizationId },
+        orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+        select: { id: true, specialty: true, valueCents: true, startsAt: true, endsAt: true, status: true },
+      }),
+    );
+  }
 }

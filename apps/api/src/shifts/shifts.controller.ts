@@ -3,6 +3,7 @@ import { UserRole } from "@prisma/client";
 import { Roles } from "../identity/decorators/roles.decorator";
 import { CurrentUser } from "../identity/decorators/current-user.decorator";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
+import { TenantContextService } from "../organizations/tenant-context";
 import { ShiftCommandsService, type DraftShiftInput, type EditShiftInput } from "./shift-commands.service";
 import { SearchShiftsQuery } from "./search-shifts.query";
 
@@ -23,7 +24,15 @@ export class ShiftsController {
   constructor(
     private readonly shiftCommands: ShiftCommandsService,
     private readonly searchShifts: SearchShiftsQuery,
+    private readonly tenantContext: TenantContextService,
   ) {}
+
+  /** Lista TODOS os plantões (qualquer status) do hospital ativo do admin. */
+  @Get()
+  async listMine(@CurrentUser() actor: AuthenticatedUser) {
+    const organizationId = this.tenantContext.requireHospitalOrganizationId(actor);
+    return this.searchShifts.listForAdmin(organizationId);
+  }
 
   @Get("search")
   @Roles(UserRole.DOCTOR, UserRole.HOSPITAL_ADMIN)

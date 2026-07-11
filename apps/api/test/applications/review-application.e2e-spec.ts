@@ -269,12 +269,17 @@ describe("POST /applications/:id/review (integração — decisão de candidatur
         .send({ organizationId: orgA.id, decision: "APPROVED", justification: "Aprovando candidato 2" }),
     ]);
 
-    const statuses = [res1.status, res2.status].sort();
-    // Exatamente uma aprovação vence (2xx); a outra é rejeitada pela
-    // constraint de unicidade do banco (409) — nunca as duas 2xx.
+    // Exatamente uma aprovação vence (2xx); nunca as duas. A perdedora
+    // recebe 409 (bateu de frente com a constraint de unicidade do
+    // banco) OU 400 (perdeu a corrida antes mesmo de tentar seu
+    // próprio UPDATE, porque o auto-reject da vencedora já havia
+    // marcado sua candidatura como REJECTED) — a ordem exata depende
+    // do agendamento do event loop/pool de conexões, mas em ambos os
+    // casos a garantia real (só uma aprovação, nunca duas) se mantém.
     const successCount = [res1, res2].filter((r) => r.status >= 200 && r.status < 300).length;
     expect(successCount).toBe(1);
-    expect(statuses.some((s) => s === 409)).toBe(true);
+    const loserStatus = res1.status >= 200 && res1.status < 300 ? res2.status : res1.status;
+    expect([400, 409]).toContain(loserStatus);
 
     const approvedCount = await tenantContext.withTenantScope(orgA.id, (tx) =>
       tx.application.count({ where: { shiftId, status: "APPROVED" } }),
