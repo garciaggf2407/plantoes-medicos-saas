@@ -164,4 +164,32 @@ export class CredentialsService {
 
     return credential;
   }
+
+  /**
+   * Fila de credenciais PENDING do hospital ativo do admin, para a
+   * tela de revisão. Minimização de PII: não inclui evidenceUrl nem
+   * contactPhone na listagem — só o necessário para triagem (CRM,
+   * especialidades, email para identificação). O admin abre
+   * getCredential(id) quando precisa ver a evidência de verdade.
+   */
+  async listPendingForAdmin(actor: AuthenticatedUser) {
+    if (actor.role !== UserRole.HOSPITAL_ADMIN) {
+      throw new ForbiddenException("Somente hospital_admin acessa a fila de revisão");
+    }
+    const organizationId = this.tenantContext.requireHospitalOrganizationId(actor);
+
+    return this.tenantContext.withTenantScope(organizationId, (tx) =>
+      tx.credential.findMany({
+        where: { organizationId, status: "PENDING" },
+        orderBy: [{ createdAt: "asc" }],
+        select: {
+          id: true,
+          createdAt: true,
+          doctorProfile: {
+            select: { crmNumber: true, specialties: true, user: { select: { email: true } } },
+          },
+        },
+      }),
+    );
+  }
 }

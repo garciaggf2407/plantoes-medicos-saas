@@ -31,6 +31,12 @@ export class CredentialsController {
     return this.credentials.submitCredential(actor, body);
   }
 
+  @Get("credentials/pending")
+  @Roles(UserRole.HOSPITAL_ADMIN)
+  async listPendingCredentials(@CurrentUser() actor: AuthenticatedUser) {
+    return this.credentials.listPendingForAdmin(actor);
+  }
+
   @Get("credentials/:id")
   @Roles(UserRole.DOCTOR, UserRole.HOSPITAL_ADMIN)
   async getCredential(
