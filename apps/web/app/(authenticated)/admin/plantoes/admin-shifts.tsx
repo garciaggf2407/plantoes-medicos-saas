@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { AdminShiftDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
-import { ActiveHospitalBanner } from "@/components/active-hospital-banner";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Rascunho",
@@ -119,8 +118,6 @@ export function AdminShifts() {
 
   return (
     <div>
-      <ActiveHospitalBanner me={meState.me} />
-
       <h2 className="mb-2 text-sm font-semibold">Novo plantão</h2>
       <form onSubmit={handleCreate} className="mb-6 flex flex-wrap items-end gap-3">
         <label className="flex flex-col text-sm">

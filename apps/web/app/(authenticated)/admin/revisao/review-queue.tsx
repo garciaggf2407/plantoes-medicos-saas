@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { PendingCredentialDto, PendingApplicationDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
-import { ActiveHospitalBanner } from "@/components/active-hospital-banner";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -93,8 +92,6 @@ export function ReviewQueue() {
 
   return (
     <div>
-      <ActiveHospitalBanner me={meState.me} />
-
       <h2 className="mb-2 text-sm font-semibold">Credenciais pendentes</h2>
       {credentials === null ? (
         <p role="status">Carregando…</p>

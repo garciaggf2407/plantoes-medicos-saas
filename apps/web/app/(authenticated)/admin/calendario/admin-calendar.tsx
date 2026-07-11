@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type { AdminShiftDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
-import { ActiveHospitalBanner } from "@/components/active-hospital-banner";
 import { ShiftCalendar, type ShiftCalendarEvent } from "@/components/shift-calendar";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; events: ShiftCalendarEvent[] };
@@ -40,7 +39,6 @@ export function AdminCalendar() {
 
   return (
     <div>
-      <ActiveHospitalBanner me={meState.me} />
       {state.status === "loading" && <p role="status">Carregando…</p>}
       {state.status === "error" && <p role="alert" className="text-red-600">{state.message}</p>}
       {state.status === "ready" && <ShiftCalendar events={state.events} />}

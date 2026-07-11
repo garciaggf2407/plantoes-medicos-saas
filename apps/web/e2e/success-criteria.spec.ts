@@ -42,7 +42,11 @@ test.describe("SC-1: médico credenciado filtra, candidata-se e vê o plantão a
     await expect(shiftLink).toBeVisible();
 
     await shiftLink.click();
-    expect(page.url()).toContain(`/medico/plantoes/${fixture.shiftId}`);
+    // waitForURL (não page.url() síncrono): a primeira navegação para uma
+    // rota dinâmica ainda não compilada pelo Turbopack em dev pode levar
+    // 1-3s (rebuild + round-trip RSC) -- checar a URL logo após o clique
+    // é uma corrida que só "funciona" com a rota já aquecida em cache.
+    await page.waitForURL(`**/medico/plantoes/${fixture.shiftId}**`);
 
     await page.getByRole("button", { name: "Candidatar-se" }).click();
     await page.getByRole("button", { name: "Confirmar candidatura" }).click();
