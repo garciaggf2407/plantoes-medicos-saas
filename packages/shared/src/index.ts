@@ -29,3 +29,22 @@ export interface CalendarEventDto {
   organizationName: string;
   timezone: string;
 }
+
+export type ShiftStatusDto = "DRAFT" | "PUBLISHED" | "FILLED" | "CANCELLED";
+
+export interface AdminShiftDto {
+  id: string;
+  specialty: string;
+  valueCents: number;
+  startsAt: string;
+  endsAt: string;
+  status: ShiftStatusDto;
+}
+
+export interface MeResponse {
+  id: string;
+  email: string;
+  role: string;
+  organizationId: string | null;
+  organizationName: string | null;
+}
