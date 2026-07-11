@@ -3,6 +3,7 @@ export interface OidcConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  webOrigin: string;
   sessionSecret: string;
   sessionTtlSeconds: number;
   cookieSecure: boolean;
@@ -27,6 +28,7 @@ export function loadOidcConfig(env: NodeJS.ProcessEnv = process.env): OidcConfig
     clientId: env.OIDC_CLIENT_ID ?? "local-dev-client",
     clientSecret: env.OIDC_CLIENT_SECRET ?? "",
     redirectUri: env.OIDC_REDIRECT_URI ?? "http://localhost:3001/auth/callback",
+    webOrigin: env.WEB_ORIGIN ?? "http://localhost:3000",
     sessionSecret,
     sessionTtlSeconds: env.SESSION_TTL_SECONDS ? Number(env.SESSION_TTL_SECONDS) : 3600,
     cookieSecure: env.COOKIE_SECURE !== "false",

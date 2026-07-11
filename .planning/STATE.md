@@ -48,6 +48,49 @@ isso para o final") — `gh auth login` nunca foi concluído. Nada foi empurrado
 ainda; o job Lint/CI nunca rodou de verdade em CI real (só localmente). Retomar quando o
 operador decidir.
 
+## Pós-blueprint: fixes adicionais
+- `b48dc48` fix(security): FakeOidcProvider deixa de ser fallback silencioso quando
+  `OIDC_ISSUER_URL` está vazia (default do próprio `infra/docker-compose.yml`) — boot agora falha
+  fechado a menos que `ALLOW_FAKE_OIDC=true` seja setado explicitamente. Ajustado em conjunto:
+  `apps/api/.env` (local) e `.env.example` (api e infra), `infra/docker-compose.yml` (passthrough
+  para api/worker), `.github/workflows/ci.yml` (env no job de testes), `docs/operations/runbooks.md`
+  seção 5. Verificado de verdade: boot sem a variável lança o erro esperado, boot com
+  `ALLOW_FAKE_OIDC=true` sobe normalmente, 145/145 testes (Redis local ativo) + lint + typecheck +
+  build completos, todos verdes.
+- **Login clicável (dev) + 2 bugs reais encontrados navegando de verdade pela primeira vez.**
+  Ninguém tinha aberto o app num navegador humano antes de hoje — os testes automatizados sempre
+  injetam o cookie de sessão direto (ver STATE anterior), nunca seguem o redirect de login de
+  verdade. Ao fazer isso pela primeira vez, apareceram 2 bugs reais:
+  1. `/auth/login` redirecionava para `http://fake-oidc.local/authorize`, um domínio que nunca
+     existiu — só funcionava no handshake HTTP puro dos testes, travava em qualquer navegador real.
+     Corrigido: `FakeOidcProvider` agora aponta para `/auth/dev-login`, uma página local de verdade
+     (`AuthService.renderDevLoginPage`/`buildDevLoginRedirect`, rotas em `auth.controller.ts`) —
+     lista contas existentes (uma por papel) como links de um clique e um form para provisionar
+     médico novo. 404 em qualquer request se `isFakeProviderActive()` for false — não depende de
+     "essa rota não deveria estar acessível", checa a cada chamada.
+  2. `/auth/callback` redirecionava para `"/"` relativo — em vez de cair na web app (porta 3000),
+     caía na raiz da própria API (porta 3001). Corrigido: `OidcConfig.webOrigin` (de `WEB_ORIGIN`,
+     mesmo default já usado no CORS) + `AuthService.getPostLoginRedirectUrl()`, usado tanto no
+     callback quanto no logout (`FakeOidcProvider.getEndSessionUrl` também parava de apontar pro
+     domínio morto — agora retorna `null`, honesto: o double não tem sessão de provedor pra encerrar).
+  - `apps/web/app/page.tsx`: a home era literalmente o placeholder do `create-next-app`
+    (`app/page.tsx` nunca editado) — sem link nenhum pro produto. Substituída por uma home real:
+    estado deslogado (mensagem + botão Entrar), estado autenticado com navegação por papel
+    (DOCTOR: Plantões disponíveis/Minha agenda; HOSPITAL_ADMIN: Gestão de plantões/Fila de
+    revisão/Calendário da unidade; SUPERADMIN: nota de que só existe via API, sem tela ainda) e
+    botão Sair.
+  - Verificado clicando de verdade (Playwright, sem injetar cookie): home deslogada → clique em
+    Entrar → página de dev-login real → clique numa conta existente → volta autenticado em
+    `localhost:3000` → clique em "Plantões disponíveis" → navega pra `/medico/plantoes` de
+    verdade. Zero erro de console (exceto o 401 esperado de `/me` na primeira checagem
+    deslogada — ruído normal do navegador, não um bug). 145/145 testes + lint + typecheck
+    continuam verdes.
+  - **Gap conhecido, não corrigido hoje**: a busca de plantões do médico (`/medico/plantoes`)
+    exige `organizationId` na URL e não há nenhum endpoint público para listar hospitais — um
+    médico não tem como descobrir esse ID pela interface. A home linka pra lá mesmo assim; o link
+    "funciona" mas a página mostra "Informe o hospital" sem explicar como. Decisão de escopo
+    pendente do operador: busca cross-hospital vs. seletor de hospital.
+
 ## Current
 - T-5.3.2 (infra/docker-compose.yml + infra/api.Dockerfile + infra/web.Dockerfile +
   infra/entrypoint-migrate.sh + infra/.env.example + infra/scripts/rollback-app.sh): serviços

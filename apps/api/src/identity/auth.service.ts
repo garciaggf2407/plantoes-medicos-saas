@@ -1,9 +1,10 @@
 import { Injectable, Inject } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
 import { UserRole } from "@prisma/client";
 import { OIDC_PROVIDER } from "./identity.tokens";
 import type { OidcProvider } from "./interfaces/oidc-provider.interface";
+import { FakeOidcProvider } from "./providers/fake-oidc.provider";
 import { SessionService } from "./session.service";
 import { loadOidcConfig, type OidcConfig } from "./oidc-config";
 import { PrismaService } from "../prisma/prisma.service";
@@ -159,8 +160,96 @@ export class AuthService {
     });
   }
 
+  /**
+   * Para onde o navegador vai depois de um login bem-sucedido. É a app
+   * web (Next.js), não este próprio serviço -- callback() usava "/"
+   * literal antes, o que aterrissava o usuário na raiz da API (nunca
+   * exercitado por um navegador real: os testes automatizados só
+   * inspecionam o header Location, nunca seguem o redirect de verdade).
+   */
+  getPostLoginRedirectUrl(): string {
+    return this.config.webOrigin;
+  }
+
   async logout(res: Response, postLogoutRedirectUri: string): Promise<string | null> {
     this.sessions.clear(res);
     return this.provider.getEndSessionUrl(postLogoutRedirectUri);
+  }
+
+  /**
+   * Só true quando não há provedor real configurado (ver auth.module.ts).
+   * Usado para gatear /auth/dev-login: essa rota não pode fazer nada em
+   * um deploy com OIDC real, mesmo que alguém a chame diretamente.
+   */
+  isFakeProviderActive(): boolean {
+    return this.provider instanceof FakeOidcProvider;
+  }
+
+  /**
+   * Página de login clicável do double local. Sem isso, /auth/login
+   * redireciona para uma URL que não resolve em um navegador real (ver
+   * fake-oidc.provider.ts) -- só útil para o handshake HTTP puro dos
+   * testes automatizados. Lista contas já existentes (uma por papel, se
+   * houver) para reentrar nelas, e um formulário para provisionar um
+   * médico novo (única auto-provisão que a regra de negócio permite;
+   * ver resolveOrProvisionUser).
+   */
+  async renderDevLoginPage(params: { redirectUri: string; state: string }): Promise<string> {
+    const [sampleDoctor, sampleAdmin] = await Promise.all([
+      this.prisma.user.findFirst({ where: { role: UserRole.DOCTOR }, orderBy: { createdAt: "asc" } }),
+      this.prisma.user.findFirst({ where: { role: UserRole.HOSPITAL_ADMIN }, orderBy: { createdAt: "asc" } }),
+    ]);
+
+    const submitUrl = (subject: string, email: string): string => {
+      const url = new URL("/auth/dev-login/submit", params.redirectUri);
+      url.searchParams.set("redirect_uri", params.redirectUri);
+      url.searchParams.set("state", params.state);
+      url.searchParams.set("subject", subject);
+      url.searchParams.set("email", email);
+      return url.toString();
+    };
+
+    const existingAccountLink = (label: string, user: { oidcSubject: string; email: string } | null): string => {
+      if (!user) return "";
+      return `<li><a href="${submitUrl(user.oidcSubject, user.email)}">${label}: ${user.email}</a></li>`;
+    };
+
+    return `<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Login local (dev)</title></head>
+<body style="font-family: sans-serif; max-width: 32rem; margin: 3rem auto;">
+  <h1>Login de desenvolvimento</h1>
+  <p><strong>FakeOidcProvider ativo</strong> — nenhum provedor OIDC real configurado. Esta página nunca existe quando <code>OIDC_ISSUER_URL</code> está definida.</p>
+  <h2>Contas existentes</h2>
+  <ul>
+    ${existingAccountLink("Médico", sampleDoctor)}
+    ${existingAccountLink("Admin hospitalar", sampleAdmin)}
+  </ul>
+  <h2>Entrar como médico novo</h2>
+  <form action="/auth/dev-login/submit" method="get">
+    <input type="hidden" name="redirect_uri" value="${params.redirectUri}">
+    <input type="hidden" name="state" value="${params.state}">
+    <label>E-mail: <input type="email" name="email" required placeholder="seuemail@example.com"></label>
+    <button type="submit">Entrar</button>
+  </form>
+</body>
+</html>`;
+  }
+
+  /**
+   * Gera o "code" do double e redireciona para /auth/callback, fechando
+   * o mesmo fluxo que o handshake HTTP dos testes automatizados usa --
+   * a diferença é só de onde o code vem (clique humano vs. gerado por
+   * um script). Sem subject explícito (form de médico novo), gera um
+   * subject aleatório -- garante que nunca colide com email já
+   * reivindicado por outro subject (ver resolveOrProvisionUser).
+   */
+  buildDevLoginRedirect(params: { email: string; subject?: string; redirectUri: string; state: string }): string {
+    const subject = params.subject && params.subject.length > 0 ? params.subject : `dev-${randomBytes(8).toString("hex")}`;
+    const code = FakeOidcProvider.encodeCode(subject, params.email);
+    const url = new URL(params.redirectUri);
+    url.searchParams.set("code", code);
+    url.searchParams.set("state", params.state);
+    return url.toString();
   }
 }

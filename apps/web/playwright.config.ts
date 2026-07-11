@@ -27,10 +27,9 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm --filter @plantoes/api start:dev",
-      // /auth/login redireciona (302) para http://fake-oidc.local/...
-      // -- o cliente HTTP interno do webServer tenta seguir o
-      // redirect e falha resolução de DNS repetidamente até estourar
-      // o timeout. /health é público e responde 200 direto.
+      // /health é público, não depende de Prisma/sessão e responde
+      // 200 assim que o Nest sobe -- a checagem de prontidão mais
+      // barata disponível.
       url: `http://localhost:${API_PORT}/health`,
       reuseExistingServer: !process.env.CI,
       cwd: "../..",

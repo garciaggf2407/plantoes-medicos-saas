@@ -29,13 +29,13 @@ export class FakeOidcProvider implements OidcProvider {
     const nonce = randomBytes(16).toString("hex");
     const codeVerifier = randomBytes(32).toString("hex");
 
-    const url = new URL("http://fake-oidc.local/authorize");
-    url.searchParams.set("client_id", "local-dev-client");
+    // Diferente de um provedor real, este double não precisa de rede
+    // externa nem de um domínio de "authorize" -- redireciona para uma
+    // página local clicável (GET /auth/dev-login, ver auth.controller.ts)
+    // que só existe quando este mesmo provider está ativo.
+    const url = new URL("/auth/dev-login", redirectUri);
     url.searchParams.set("redirect_uri", redirectUri);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("scope", "openid email profile");
     url.searchParams.set("state", state);
-    url.searchParams.set("nonce", nonce);
 
     return { url: url.toString(), state, nonce, codeVerifier };
   }
@@ -68,10 +68,11 @@ export class FakeOidcProvider implements OidcProvider {
     return { subject, email, expiresAt };
   }
 
-  async getEndSessionUrl(postLogoutRedirectUri: string): Promise<string | null> {
-    const url = new URL("http://fake-oidc.local/logout");
-    url.searchParams.set("post_logout_redirect_uri", postLogoutRedirectUri);
-    return url.toString();
+  async getEndSessionUrl(): Promise<string | null> {
+    // O double não tem sessão nenhuma no "provedor" além do JWT emitido
+    // localmente -- não existe endpoint de logout global para redirecionar.
+    // Limpar o cookie local (já feito por AuthService.logout) é suficiente.
+    return null;
   }
 
   /** Helper apenas para testes de integração construírem um "code" válido. */

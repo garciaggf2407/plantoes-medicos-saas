@@ -41,7 +41,7 @@ describe("Auth (integração — login/callback/logout)", () => {
     const res = await request(app.getHttpServer()).get("/auth/login");
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toContain("fake-oidc.local/authorize");
+    expect(res.headers.location).toContain("/auth/dev-login");
     expect(res.headers.location).toMatch(/state=/);
 
     const setCookie = res.headers["set-cookie"] as unknown as string[];
@@ -64,7 +64,7 @@ describe("Auth (integração — login/callback/logout)", () => {
       .query({ code, state });
 
     expect(callbackRes.status).toBe(302);
-    expect(callbackRes.headers.location).toBe("/");
+    expect(callbackRes.headers.location).toBe("http://localhost:3000");
 
     const callbackCookies = callbackRes.headers["set-cookie"] as unknown as string[];
     const sessionCookieHeader = callbackCookies.find((c) => c.startsWith("plantoes_session="));
