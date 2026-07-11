@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { AdminCalendar } from "./admin-calendar";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function AdminCalendarPage() {
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Calendário da unidade</h1>
-      <Suspense fallback={<p role="status">Carregando…</p>}>
+      <PageHeader title="Calendário da unidade" description="Visão consolidada dos plantões publicados e preenchidos." />
+      <Suspense fallback={<LoadingState />}>
         <AdminCalendar />
       </Suspense>
     </div>

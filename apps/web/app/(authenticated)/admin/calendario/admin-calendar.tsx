@@ -5,6 +5,8 @@ import type { AdminShiftDto } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useMe } from "@/lib/use-me";
 import { ShiftCalendar, type ShiftCalendarEvent } from "@/components/shift-calendar";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; events: ShiftCalendarEvent[] };
 
@@ -34,13 +36,13 @@ export function AdminCalendar() {
       });
   }, [meState.status]);
 
-  if (meState.status === "loading") return <p role="status">Carregando…</p>;
-  if (meState.status === "error") return <p role="alert" className="text-red-600">Não foi possível carregar seus dados.</p>;
+  if (meState.status === "loading") return <LoadingState />;
+  if (meState.status === "error") return <ErrorState message="Não foi possível carregar seus dados." />;
 
   return (
     <div>
-      {state.status === "loading" && <p role="status">Carregando…</p>}
-      {state.status === "error" && <p role="alert" className="text-red-600">{state.message}</p>}
+      {state.status === "loading" && <LoadingState />}
+      {state.status === "error" && <ErrorState message={state.message} />}
       {state.status === "ready" && <ShiftCalendar events={state.events} />}
     </div>
   );
