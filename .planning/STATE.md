@@ -33,7 +33,20 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | APPROVED (CP-4) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 9/9 (falta só CP-5) |
+| E-5 Notificações e qualidade | APPROVED (CP-5) | 9/9 |
+
+## Blueprint
+**BP-2026-07-10-002: COMPLETO.** Todos os 5 épicos aprovados (CP-1 a CP-5). CP-5 aprovado pelo
+operador com ressalva reconhecida e aceita: deploy via Docker Compose (T-5.3.2) foi escrito e
+verificado por meios alternativos (toolchain nativo), mas `docker compose up` real nunca rodou
+neste ambiente (Docker não instalado, sem admin/UAC) — primeira execução real fica para a
+primeira máquina com Docker disponível.
+
+**Pendência remanescente (fora do escopo do blueprint, decisão do operador):** push para
+`https://github.com/garciaggf2407/ProjetoMedicos.git` foi deliberadamente adiado ("vamos deixar
+isso para o final") — `gh auth login` nunca foi concluído. Nada foi empurrado para o GitHub
+ainda; o job Lint/CI nunca rodou de verdade em CI real (só localmente). Retomar quando o
+operador decidir.
 
 ## Current
 - T-5.3.2 (infra/docker-compose.yml + infra/api.Dockerfile + infra/web.Dockerfile +
