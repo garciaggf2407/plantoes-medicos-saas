@@ -20,14 +20,17 @@
 |------|--------|------------|
 | E-1 Fundação | APPROVED (CP-1, condicional — CI ainda não verificada) | 7/7 |
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
-| E-3 Portal do Médico | DONE (pending CP-3 approval) | 5/5 |
-| E-4 Portal do Administrador | TODO | 0/4 |
+| E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
+| E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
 | E-5 Notificações e qualidade | TODO | 0/9 |
 
 ## Current
-- Epic: E-3 complete
-- Checkpoint: CP-3 awaiting operator approval
-- Tests: 94/94 passing (apps/api), full workspace build green
-- Frontend verificado em navegador real (Playwright) duas vezes:
-  fluxo listagem->detalhe->candidatura, e calendário mês/semana
-- Após CP-3: aguardar CP-4 antes de liberar E-5 (E-4 ainda não iniciada)
+- Epic: E-4 complete
+- Checkpoint: CP-4 awaiting operator approval
+- Tests: 111/111 passing (apps/api), full workspace build green
+- Frontend verificado em navegador real (Playwright) três vezes:
+  E-3 (listagem->detalhe->candidatura, calendário mês/semana) e
+  E-4 (gestão de plantões CRUD, fila de revisão, calendário da
+  unidade — fluxo ponta a ponta confirmado: aprovar candidatura na
+  fila fez o plantão aparecer como "Preenchido" no calendário)
+- CP-3 e CP-4 ambas aprovadas → E-5 liberada
