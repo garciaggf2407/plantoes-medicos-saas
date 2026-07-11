@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens (BP-2026-07-11-002) — fonte única de verdade do mapeamento
+ * semântico de cores. Usar sempre estas classes Tailwind nativas; nunca
+ * introduzir hex customizado fora daqui.
+ *
+ *   Ação primária / links / foco  -> blue-600   (hover: blue-700)
+ *   Positivo (aprovado/preenchido) -> emerald-600
+ *   Pendente / atenção            -> amber-600
+ *   Negativo (erro/cancelado)     -> red-600 (reservado — nunca decorativo)
+ *   Neutro (fundo/borda/texto)    -> slate-{50,200,400,600,900}
+ *
+ * Tipografia: Inter (única família). h1: text-2xl font-semibold,
+ * h2: text-xl font-semibold, corpo: text-sm/text-base,
+ * texto secundário: text-sm text-slate-600.
+ *
+ * Forma: rounded-lg em cards/botões/inputs, shadow-sm em cards.
+ * Container padrão de página autenticada: max-w-5xl mx-auto p-6 md:p-8.
+ *
+ * Sem dark mode automático: a paleta foi desenhada para fundo claro
+ * (branco predominante, referência de sites de saúde — ver exec-arch.yaml
+ * design_language); inverter via prefers-color-scheme quebraria o
+ * contraste calculado para os componentes de estado (Badge/Card).
+ */
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-sans);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
