@@ -48,3 +48,22 @@ export interface MeResponse {
   organizationId: string | null;
   organizationName: string | null;
 }
+
+interface DoctorSummaryDto {
+  crmNumber: string;
+  specialties: string[];
+  user: { email: string };
+}
+
+export interface PendingCredentialDto {
+  id: string;
+  createdAt: string;
+  doctorProfile: DoctorSummaryDto;
+}
+
+export interface PendingApplicationDto {
+  id: string;
+  appliedAt: string;
+  shift: { id: string; specialty: string; valueCents: number; startsAt: string; endsAt: string };
+  doctorProfile: DoctorSummaryDto;
+}
