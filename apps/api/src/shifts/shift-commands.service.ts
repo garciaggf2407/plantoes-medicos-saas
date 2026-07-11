@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ShiftStatus, UserRole } from "@prisma/client";
 import { TenantContextService } from "../organizations/tenant-context";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
+import { OutboxService } from "../notifications/outbox.service";
 
 export interface DraftShiftInput {
   specialty: string;
@@ -60,7 +61,10 @@ function validateValueCents(valueCents: number): void {
  */
 @Injectable()
 export class ShiftCommandsService {
-  constructor(private readonly tenantContext: TenantContextService) {}
+  constructor(
+    private readonly tenantContext: TenantContextService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   private requireAdmin(actor: AuthenticatedUser): string {
     if (actor.role !== UserRole.HOSPITAL_ADMIN) {
@@ -164,7 +168,19 @@ export class ShiftCommandsService {
         throw new BadRequestException(`Transição inválida: ${existing.status} -> ${next}`);
       }
 
-      return tx.shift.update({ where: { id: shiftId }, data: { status: next } });
+      const updated = await tx.shift.update({ where: { id: shiftId }, data: { status: next } });
+
+      if (next === ShiftStatus.PUBLISHED) {
+        // Mesma transação do UPDATE: se o evento falhar ao gravar, a
+        // publicação também sofre rollback — nunca ficam dessincronizados.
+        await this.outbox.enqueue(tx, organizationId, "shift.published", {
+          version: 1,
+          shiftId: updated.id,
+          specialty: updated.specialty,
+        });
+      }
+
+      return updated;
     });
   }
 }

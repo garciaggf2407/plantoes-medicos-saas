@@ -9,6 +9,7 @@ import { CredentialsModule } from "./credentials/credentials.module";
 import { ShiftsModule } from "./shifts/shifts.module";
 import { ApplicationsModule } from "./applications/applications.module";
 import { CalendarModule } from "./calendar/calendar.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { AuthenticationGuard } from "./identity/guards/authentication.guard";
 import { AuthorizationGuard } from "./identity/authorization.guard";
 
@@ -16,6 +17,7 @@ import { AuthorizationGuard } from "./identity/authorization.guard";
   imports: [
     PrismaModule,
     OrganizationsModule,
+    NotificationsModule,
     AuthModule,
     CredentialsModule,
     ShiftsModule,

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma, ApplicationStatus, ShiftStatus, UserRole } from "@prisma/client";
 import { TenantContextService } from "../organizations/tenant-context";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
+import { OutboxService } from "../notifications/outbox.service";
 
 export type ApplicationDecision = "APPROVED" | "REJECTED";
 
@@ -30,7 +31,10 @@ export interface ReviewApplicationInput {
  */
 @Injectable()
 export class ReviewApplicationUseCase {
-  constructor(private readonly tenantContext: TenantContextService) {}
+  constructor(
+    private readonly tenantContext: TenantContextService,
+    private readonly outbox: OutboxService,
+  ) {}
 
   async execute(actor: AuthenticatedUser, applicationId: string, input: ReviewApplicationInput) {
     if (actor.role !== UserRole.HOSPITAL_ADMIN) {
@@ -76,6 +80,13 @@ export class ReviewApplicationUseCase {
             justification,
           },
         });
+        await this.outbox.enqueue(tx, organizationId, "application.decided", {
+          version: 1,
+          applicationId: updated.id,
+          shiftId: application.shiftId,
+          doctorProfileId: application.doctorProfileId,
+          decision: "REJECTED",
+        });
         return updated;
       }
 
@@ -116,6 +127,14 @@ export class ReviewApplicationUseCase {
           targetId: applicationId,
           justification,
         },
+      });
+
+      await this.outbox.enqueue(tx, organizationId, "application.decided", {
+        version: 1,
+        applicationId: updated.id,
+        shiftId: application.shiftId,
+        doctorProfileId: application.doctorProfileId,
+        decision: "APPROVED",
       });
 
       return updated;

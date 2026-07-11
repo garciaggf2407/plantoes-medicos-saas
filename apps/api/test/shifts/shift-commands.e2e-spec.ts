@@ -10,6 +10,7 @@ import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/prisma/prisma.service";
 import { TenantContextService } from "../../src/organizations/tenant-context";
 import { SessionService, type SessionPayload } from "../../src/identity/session.service";
+import { createAdminPrismaForTestCleanup } from "../support/admin-prisma";
 
 process.env.SESSION_SECRET ??= "test-only-session-secret-32-characters";
 process.env.OIDC_ISSUER_URL = "";
@@ -83,6 +84,9 @@ describe("Shift commands (integração — rascunhar, publicar, editar, cancelar
   });
 
   afterAll(async () => {
+    const admin = createAdminPrismaForTestCleanup();
+    await admin.outboxEvent.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
+    await admin.$disconnect();
     for (const orgId of [orgA.id, orgB.id]) {
       await tenantContext.withTenantScope(orgId, (tx) => tx.shift.deleteMany({ where: { organizationId: orgId } }));
     }

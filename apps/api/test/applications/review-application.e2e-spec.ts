@@ -115,6 +115,7 @@ describe("POST /applications/:id/review (integração — decisão de candidatur
     await tenantContext.withTenantScope(orgA.id, (tx) => tx.shift.deleteMany({ where: { organizationId: orgA.id } }));
 
     const admin = createAdminPrismaForTestCleanup();
+    await admin.outboxEvent.deleteMany({ where: { organizationId: { in: [orgA.id, orgB.id] } } });
     await admin.auditLog.deleteMany({ where: { actorUserId: { in: createdUserIds } } });
     await admin.$disconnect();
 

@@ -43,6 +43,13 @@ enum NotificationChannel {
   EMAIL
 }
 
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  DEAD_LETTER
+}
+
 /// Hospital (tenant). Todas as demais entidades hospitalares
 /// referenciam organizationId e ficam sujeitas a RLS por esta linha.
 model Organization {
@@ -60,6 +67,7 @@ model Organization {
   applications  Application[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  outboxEvents  OutboxEvent[]
 
   @@map("organizations")
 }
@@ -197,6 +205,34 @@ model Notification {
   @@index([userId, readAt])
   @@index([organizationId])
   @@map("notifications")
+}
+
+/// Outbox transacional: eventos de domínio (plantão publicado,
+/// candidatura decidida) gravados na MESMA transação da mudança de
+/// negócio (ver OutboxService.enqueue). Se a transação de negócio
+/// commita, o evento já está persistido — falha do processo logo
+/// depois do commit nunca perde o evento pendente; ele continua lá
+/// para o worker (T-5.1.2) processar. payload sempre inclui um
+/// campo "version" — schema do evento é versionado, permitindo
+/// evoluir o formato sem quebrar eventos antigos ainda não
+/// processados.
+model OutboxEvent {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  eventType      String            @map("event_type")
+  payload        Json
+  status         OutboxEventStatus @default(PENDING)
+  attempts       Int               @default(0)
+  availableAt    DateTime          @default(now()) @map("available_at")
+  lastError      String?           @map("last_error")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([status, availableAt])
+  @@map("outbox_events")
 }
 
 /// Trilha de auditoria imutável (sem update/delete a nível de
