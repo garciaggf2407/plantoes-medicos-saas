@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ShiftStatus, type Prisma } from "@prisma/client";
+import type { Span } from "@opentelemetry/api";
 import { TenantContextService } from "../organizations/tenant-context";
+import { telemetry, withSpan } from "../observability/telemetry";
+import { logEvent } from "../observability/structured-logger";
 
 export interface SearchShiftsFilters {
   organizationId: string;
@@ -59,6 +62,12 @@ export class SearchShiftsQuery {
   constructor(private readonly tenantContext: TenantContextService) {}
 
   async execute(filters: SearchShiftsFilters): Promise<SearchShiftsResult> {
+    return withSpan("shifts.search", { "shifts.organization_id": filters.organizationId }, async (span) =>
+      this.doExecute(filters, span),
+    );
+  }
+
+  private async doExecute(filters: SearchShiftsFilters, span: Span): Promise<SearchShiftsResult> {
     const page = filters.page && filters.page > 0 ? Math.floor(filters.page) : 1;
     const pageSize = filters.pageSize
       ? Math.min(Math.max(1, Math.floor(filters.pageSize)), MAX_PAGE_SIZE)
@@ -111,6 +120,10 @@ export class SearchShiftsQuery {
         }),
         tx.shift.count({ where }),
       ]);
+
+      span.setAttribute("shifts.result_count", items.length);
+      telemetry.shiftSearchCounter.add(1);
+      logEvent("shifts.search", { organizationId: filters.organizationId, resultCount: items.length, page });
 
       return { items, page, pageSize, total };
     });

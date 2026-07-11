@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ApplicationStatus, ShiftStatus, UserRole } from "@prisma/client";
 import { TenantContextService } from "../organizations/tenant-context";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
+import { telemetry, withSpan } from "../observability/telemetry";
+import { logEvent } from "../observability/structured-logger";
 
 export interface ApplyToShiftInput {
   shiftId: string;
@@ -43,6 +45,14 @@ export class ApplyToShiftUseCase {
       throw new ForbiddenException("Somente médico se candidata a plantão");
     }
 
+    return withSpan(
+      "application.apply",
+      { "application.organization_id": input.organizationId, "application.shift_id": input.shiftId },
+      async () => this.doExecute(actor, input),
+    );
+  }
+
+  private async doExecute(actor: AuthenticatedUser, input: ApplyToShiftInput) {
     return this.tenantContext.withTenantScope(input.organizationId, async (tx) => {
       const shift = await tx.shift.findUnique({ where: { id: input.shiftId } });
       if (!shift) {
@@ -94,7 +104,7 @@ export class ApplyToShiftUseCase {
         throw new ApplicationRejectedError("schedule_conflict", "Conflito de agenda com outro plantão aprovado");
       }
 
-      return tx.application.upsert({
+      const result = await tx.application.upsert({
         where: { shiftId_doctorProfileId: { shiftId: input.shiftId, doctorProfileId: profile.id } },
         create: {
           shiftId: input.shiftId,
@@ -109,6 +119,11 @@ export class ApplyToShiftUseCase {
           justification: null,
         },
       });
+
+      telemetry.applicationCounter.add(1);
+      logEvent("application.apply", { organizationId: input.organizationId, shiftId: input.shiftId, applicationId: result.id });
+
+      return result;
     });
   }
 }

@@ -7,6 +7,8 @@ import type { OidcProvider } from "./interfaces/oidc-provider.interface";
 import { SessionService } from "./session.service";
 import { loadOidcConfig, type OidcConfig } from "./oidc-config";
 import { PrismaService } from "../prisma/prisma.service";
+import { telemetry, withSpan } from "../observability/telemetry";
+import { logEvent } from "../observability/structured-logger";
 
 const PENDING_AUTH_COOKIE = "plantoes_auth_pending";
 
@@ -43,19 +45,19 @@ export class AuthService {
    *     papel DOCTOR (auto-cadastro — hospital_admin/superadmin
    *     nunca são criados implicitamente, apenas por convite).
    */
-  private async resolveOrProvisionUser(subject: string, email: string): Promise<void> {
+  private async resolveOrProvisionUser(subject: string, email: string): Promise<UserRole> {
     const existingBySubject = await this.prisma.user.findUnique({ where: { oidcSubject: subject } });
     if (existingBySubject) {
-      return;
+      return existingBySubject.role;
     }
 
     const existingByEmail = await this.prisma.user.findUnique({ where: { email } });
     if (existingByEmail && existingByEmail.oidcSubject.startsWith("pending:")) {
-      await this.prisma.user.update({
+      const claimed = await this.prisma.user.update({
         where: { id: existingByEmail.id },
         data: { oidcSubject: subject },
       });
-      return;
+      return claimed.role;
     }
     if (existingByEmail) {
       // Email já pertence a uma conta com subject definitivo diferente
@@ -63,9 +65,10 @@ export class AuthService {
       throw new OidcCallbackError("email_already_claimed");
     }
 
-    await this.prisma.user.create({
+    const created = await this.prisma.user.create({
       data: { oidcSubject: subject, email, role: UserRole.DOCTOR },
     });
+    return created.role;
   }
 
   private sign(value: string): string {
@@ -135,19 +138,24 @@ export class AuthService {
       throw new OidcCallbackError("state_mismatch");
     }
 
-    const tokens = await this.provider.exchangeCodeForTokens({
-      code: query.code,
-      redirectUri: this.config.redirectUri,
-      codeVerifier: pending.codeVerifier,
-      expectedNonce: pending.nonce,
-    });
+    await withSpan("auth.login", {}, async () => {
+      const tokens = await this.provider.exchangeCodeForTokens({
+        code: query.code!,
+        redirectUri: this.config.redirectUri,
+        codeVerifier: pending.codeVerifier,
+        expectedNonce: pending.nonce,
+      });
 
-    await this.resolveOrProvisionUser(tokens.subject, tokens.email);
+      const role = await this.resolveOrProvisionUser(tokens.subject, tokens.email);
 
-    this.sessions.issue(res, {
-      subject: tokens.subject,
-      email: tokens.email,
-      exp: Math.floor(Date.now() / 1000) + this.config.sessionTtlSeconds,
+      this.sessions.issue(res, {
+        subject: tokens.subject,
+        email: tokens.email,
+        exp: Math.floor(Date.now() / 1000) + this.config.sessionTtlSeconds,
+      });
+
+      telemetry.loginCounter.add(1, { role });
+      logEvent("auth.login", { role });
     });
   }
 

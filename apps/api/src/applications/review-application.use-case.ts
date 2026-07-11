@@ -3,6 +3,8 @@ import { Prisma, ApplicationStatus, ShiftStatus, UserRole } from "@prisma/client
 import { TenantContextService } from "../organizations/tenant-context";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
 import { OutboxService } from "../notifications/outbox.service";
+import { telemetry, withSpan } from "../observability/telemetry";
+import { logEvent } from "../observability/structured-logger";
 
 export type ApplicationDecision = "APPROVED" | "REJECTED";
 
@@ -54,6 +56,20 @@ export class ReviewApplicationUseCase {
       throw new BadRequestException("justification deve ter ao menos 5 caracteres");
     }
 
+    return withSpan(
+      "application.decide",
+      { "application.organization_id": organizationId, "application.id": applicationId, "application.decision": input.decision },
+      async () => this.doExecute(actor, applicationId, input, organizationId, justification),
+    );
+  }
+
+  private async doExecute(
+    actor: AuthenticatedUser,
+    applicationId: string,
+    input: ReviewApplicationInput,
+    organizationId: string,
+    justification: string,
+  ) {
     return this.tenantContext.withTenantScope(organizationId, async (tx) => {
       const preliminary = await tx.application.findUnique({ where: { id: applicationId } });
       if (!preliminary) {
@@ -116,6 +132,8 @@ export class ReviewApplicationUseCase {
           doctorProfileId: application.doctorProfileId,
           decision: "REJECTED",
         });
+        telemetry.decisionCounter.add(1, { "decision.kind": "application", "decision.outcome": "rejected" });
+        logEvent("application.decide", { organizationId, applicationId, decision: "REJECTED" });
         return updated;
       }
 
@@ -165,6 +183,9 @@ export class ReviewApplicationUseCase {
         doctorProfileId: application.doctorProfileId,
         decision: "APPROVED",
       });
+
+      telemetry.decisionCounter.add(1, { "decision.kind": "application", "decision.outcome": "approved" });
+      logEvent("application.decide", { organizationId, applicationId, decision: "APPROVED" });
 
       return updated;
     });

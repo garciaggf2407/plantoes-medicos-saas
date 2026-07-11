@@ -3,7 +3,9 @@ import { Queue, Worker, type ConnectionOptions, type Job } from "bullmq";
 import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { TenantContextService } from "../organizations/tenant-context";
-import type { OutboxEventPayload } from "./outbox.service";
+import type { OutboxEventPayload, StoredEventPayload } from "./outbox.service";
+import { telemetry, withSpan, extractTraceContext } from "../observability/telemetry";
+import { logEvent } from "../observability/structured-logger";
 
 export interface NotificationHandlerContext {
   organizationId: string;
@@ -235,25 +237,45 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
 
   private async processJob(job: Job<NotificationJobData>): Promise<void> {
     const { outboxEventId, organizationId, eventType } = job.data;
-    await this.tenantContext.withTenantScope(organizationId, async (tx) => {
-      const event = await tx.outboxEvent.findUnique({ where: { id: outboxEventId } });
-      if (!event || event.status !== "PROCESSING") {
-        // Já concluído (ou não mais reivindicado) por outra execução -- no-op idempotente.
-        return;
-      }
-      const eventHandlers = this.handlers.get(eventType);
-      if (!eventHandlers || eventHandlers.length === 0) {
-        throw new Error(`Nenhum handler registrado para eventType "${eventType}"`);
-      }
-      const payload = event.payload as unknown as OutboxEventPayload;
-      for (const handler of eventHandlers) {
-        await handler(payload, { organizationId, outboxEventId, tx });
-      }
-      await tx.outboxEvent.update({
-        where: { id: outboxEventId },
-        data: { status: "COMPLETED", attempts: job.attemptsMade },
-      });
-    });
+    // Extrai o trace context gravado por OutboxService.enqueue (T-5.2.2)
+    // -- o span de entrega abre como filho da MESMA trace da
+    // requisição HTTP que originou o evento, mesmo processando muito
+    // depois, num job sem relação de call-stack direta com ela. Isso
+    // é o que torna correlationId (traceId) ponta a ponta real.
+    const preRead = await this.tenantContext.withTenantScope(organizationId, (tx) =>
+      tx.outboxEvent.findUnique({ where: { id: outboxEventId }, select: { payload: true } }),
+    );
+    const parentContext = extractTraceContext((preRead?.payload as unknown as StoredEventPayload | undefined)?._trace);
+
+    await withSpan(
+      "notification.deliver",
+      { "notification.event_type": eventType, "notification.organization_id": organizationId },
+      async () => {
+        await this.tenantContext.withTenantScope(organizationId, async (tx) => {
+          const event = await tx.outboxEvent.findUnique({ where: { id: outboxEventId } });
+          if (!event || event.status !== "PROCESSING") {
+            // Já concluído (ou não mais reivindicado) por outra execução -- no-op idempotente.
+            return;
+          }
+          const eventHandlers = this.handlers.get(eventType);
+          if (!eventHandlers || eventHandlers.length === 0) {
+            telemetry.notificationDeliveryCounter.add(1, { "notification.event_type": eventType, "notification.result": "no_handler" });
+            throw new Error(`Nenhum handler registrado para eventType "${eventType}"`);
+          }
+          const payload = event.payload as unknown as OutboxEventPayload;
+          for (const handler of eventHandlers) {
+            await handler(payload, { organizationId, outboxEventId, tx });
+          }
+          await tx.outboxEvent.update({
+            where: { id: outboxEventId },
+            data: { status: "COMPLETED", attempts: job.attemptsMade },
+          });
+          telemetry.notificationDeliveryCounter.add(1, { "notification.event_type": eventType, "notification.result": "delivered" });
+          logEvent("notification.deliver", { organizationId, eventType, outboxEventId });
+        });
+      },
+      parentContext,
+    );
   }
 
   private async handleFailure(job: Job<NotificationJobData> | undefined, err: Error): Promise<void> {

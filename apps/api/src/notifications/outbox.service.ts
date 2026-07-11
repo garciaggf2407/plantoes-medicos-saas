@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { injectTraceContext, type TraceCarrier } from "../observability/telemetry";
 
 export type OutboxEventType = "shift.published" | "application.decided";
 
@@ -19,6 +20,11 @@ export interface ApplicationDecidedPayload {
 
 export type OutboxEventPayload = ShiftPublishedPayload | ApplicationDecidedPayload;
 
+/** Metadado interno gravado junto do payload — nunca parte do contrato visível ao chamador de enqueue(). */
+export interface StoredEventPayload {
+  _trace?: TraceCarrier;
+}
+
 /**
  * Outbox transacional. enqueue() SEMPRE recebe o `tx` da MESMA
  * transação Prisma do comando de negócio em andamento (ex.:
@@ -35,6 +41,14 @@ export type OutboxEventPayload = ShiftPublishedPayload | ApplicationDecidedPaylo
  * payload sempre carrega um campo "version" — schema do evento é
  * versionado, para permitir evoluir o formato sem quebrar leitura
  * de eventos antigos ainda não processados pelo worker.
+ *
+ * O trace context ATIVO no momento do enqueue (T-5.2.2) é gravado
+ * junto em "_trace" — nunca parte do contrato de OutboxEventPayload
+ * visível ao chamador, só um metadado interno. NotificationWorkerService
+ * o extrai para abrir o span de entrega da notificação como filho da
+ * MESMA trace da requisição HTTP que originou o evento, mesmo
+ * processando minutos depois, num job sem relação de call-stack
+ * direta — é isso que torna a correlação ponta a ponta real.
  */
 @Injectable()
 export class OutboxService {
@@ -44,11 +58,12 @@ export class OutboxService {
     eventType: OutboxEventType,
     payload: OutboxEventPayload,
   ): Promise<void> {
+    const stored: OutboxEventPayload & StoredEventPayload = { ...payload, _trace: injectTraceContext() };
     await tx.outboxEvent.create({
       data: {
         organizationId,
         eventType,
-        payload: payload as unknown as Prisma.InputJsonValue,
+        payload: stored as unknown as Prisma.InputJsonValue,
       },
     });
   }

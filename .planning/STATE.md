@@ -29,13 +29,35 @@
 | E-2 Domínio core | APPROVED (CP-2) | 5/5 |
 | E-3 Portal do Médico | APPROVED (CP-3) | 5/5 |
 | E-4 Portal do Administrador | DONE (pending CP-4 approval) | 4/4 |
-| E-5 Notificações e qualidade | IN PROGRESS | 5/9 |
+| E-5 Notificações e qualidade | IN PROGRESS | 6/9 |
 
 ## Current
-- Epic: E-5 in progress (S-5.1 "Notificações confiáveis" completa: T-5.1.1-T-5.1.4;
-  T-5.2.1 E2E dos 5 critérios de sucesso feito)
-- Tests: 132/132 passing (apps/api), 5/5 passing (Playwright E2E, apps/web), full workspace
+- Epic: E-5 in progress (S-5.1 completa: T-5.1.1-T-5.1.4; T-5.2.1 E2E; T-5.2.2 observabilidade)
+- Tests: 138/138 passing (apps/api), 5/5 passing (Playwright E2E, apps/web), full workspace
   build green
+- T-5.2.2 (apps/api/src/observability/telemetry.ts + structured-logger.ts): OpenTelemetry real
+  (traces + métricas) para os 5 fluxos críticos (login, busca, candidatura, decisão, entrega de
+  notificação) + log estruturado JSON correlacionado. Sem backend OTLP configurado neste
+  ambiente (mesmo guardrail "double até CP-5"): exporta pro console por padrão;
+  OTEL_EXPORTER_OTLP_ENDPOINT troca pra OTLP HTTP de verdade sem mudar chamador nenhum.
+  Correlação ponta a ponta É REAL (não só um id copiado à mão): trace context W3C é
+  injetado no payload do OutboxEvent no momento do enqueue e extraído pelo worker ao
+  processar — o span "notification.deliver", criado num job assíncrono sem relação de
+  call-stack com a requisição original, carrega o MESMO traceId do span "application.decide"
+  que disparou o evento, confirmado por teste dedicado (test/observability/telemetry.e2e-spec.ts).
+  **Bug real encontrado ao verificar (não um ajuste de teste)**: a API de métricas do
+  OpenTelemetry (@opentelemetry/api 1.9.1) NÃO tem o mecanismo de proxy/delegate que a API de
+  trace tem — `metrics.getMeter().createCounter(...)` chamado no import do módulo (antes de
+  initTelemetry() rodar) vincula os counters PERMANENTEMENTE a um MeterProvider no-op; eles
+  nunca registrariam nada de verdade, mesmo depois do provider real ser registrado. Corrigido
+  criando os counters sob demanda (lazy, primeiro uso real dentro de um fluxo) em vez de no
+  top-level do módulo. Lição: a API de trace e a de métricas do OpenTelemetry têm mecanismos de
+  registro global DIFERENTES — não assumir que o padrão de uma se aplica à outra sem checar o
+  código-fonte da versão instalada.
+- Nota: testes que bootstram via Test.createTestingModule diretamente (todos exceto
+  telemetry.e2e-spec.ts) NUNCA chamam initTelemetry() (main.ts não roda) — correlationId nos
+  logs deles é null por design, não um bug. Só a app real (main.ts) e o teste dedicado
+  registram um provider de verdade.
 - T-5.2.1 (apps/web/e2e/success-criteria.spec.ts, apps/web/playwright.config.ts): sobe API+web
   reais + worker real (Redis) contra o Postgres de dev. Login sem UI (double de OIDC): drives
   GET /auth/login + /auth/callback via HTTP puro, injeta o cookie de sessão resultante no
