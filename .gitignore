@@ -7,3 +7,5 @@ coverage/
 .env.local
 *.tsbuildinfo
 .orchestrator/runtime/*/attempts/
+.tools/
+dump.rdb

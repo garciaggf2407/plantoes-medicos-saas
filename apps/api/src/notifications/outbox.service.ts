@@ -52,4 +52,12 @@ export class OutboxService {
       },
     });
   }
+
+  /** Eventos que esgotaram as tentativas do worker (T-5.1.2) — consultável para observabilidade/operação. */
+  async listDeadLetter(tx: Prisma.TransactionClient, organizationId: string) {
+    return tx.outboxEvent.findMany({
+      where: { organizationId, status: "DEAD_LETTER" },
+      orderBy: { updatedAt: "desc" },
+    });
+  }
 }

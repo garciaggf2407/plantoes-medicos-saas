@@ -4,6 +4,7 @@ packages:
 
 allowBuilds:
   '@swc/core': true
+  msgpackr-extract: true
 
 # Monorepo do MVP de Gerenciamento de Plantões Médicos (BP-2026-07-10-002)
 # apps/web    -> Next.js 15 (Portal Médico + Portal Admin)
@@ -22,3 +23,4 @@ onlyBuiltDependencies:
   - "@prisma/engines"
   - prisma
   - "@swc/core"
+  - msgpackr-extract

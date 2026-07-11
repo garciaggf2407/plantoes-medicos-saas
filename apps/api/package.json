@@ -16,6 +16,7 @@
     "@nestjs/platform-express": "^11.1.28",
     "@plantoes/shared": "workspace:*",
     "@prisma/client": "^6.2.1",
+    "bullmq": "^5.79.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "jose": "^5.9.6",
