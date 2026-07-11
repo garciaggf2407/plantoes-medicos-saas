@@ -206,3 +206,25 @@ operador decidir.
   unidade — fluxo ponta a ponta confirmado: aprovar candidatura na
   fila fez o plantão aparecer como "Preenchido" no calendário)
 - CP-3 e CP-4 ambas aprovadas → E-5 liberada
+
+## 2026-07-11 — Redesign visual completo (BP-2026-07-11-002)
+
+- Design system aplicado às 7 páginas: Button/Card/Badge/LoadingState/EmptyState/ErrorState/
+  PageHeader (`apps/web/components/ui/`), AppShell + route group `(authenticated)` como header
+  persistente. Paleta semântica Tailwind nativa (blue=ação, emerald=positivo, amber=pendente,
+  red=negativo, slate=neutro), fonte Inter.
+- Bug real de segurança corrigido antes do redesign: `/auth/login` do FakeOidcProvider
+  redirecionava para um domínio inexistente (`fake-oidc.local`) e o pós-login apontava para a
+  origem errada (porta da API, não do web) — corrigido com `/auth/dev-login` clicável e
+  `OidcConfig.webOrigin`.
+- Achado real da auditoria de acessibilidade (T-4.1.1): 3 cores do calendário
+  (`emerald-600`/`amber-600`/`slate-400`) ficavam abaixo de 4.5:1 de contraste WCAG AA, tanto
+  como texto quanto como fundo de evento no FullCalendar. Corrigido para `emerald-700`/
+  `amber-700`/`slate-500` (4.76–5.48:1), mesmo mapeamento semântico.
+- CP-1 aprovado pelo operador via artifact de revisão visual antes de propagar o design system
+  às 6 páginas restantes (E-2 Portal do Médico, E-3 Portal do Administrador).
+- Descoberta de infraestrutura: os 18 testes que dependem de Redis local (`notification-worker`,
+  `telemetry`) só falham quando o `redis-server` local ainda não subiu — não é regressão do
+  redesign. Suíte completa (145 API + 5 E2E) roda 100% verde com Redis ativo.
+- Blueprint BP-2026-07-11-002 concluído: 13/13 tasks, 4/4 epics, CP-1/CP-2/CP-3/CP-4 todos
+  PASSED. P6-LEARN ainda não executado.
