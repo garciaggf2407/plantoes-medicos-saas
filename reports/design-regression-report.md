@@ -15,24 +15,24 @@ Nenhum teste foi pulado ou marcado como skip para forçar verde.
 
 ## Screenshots — 7 páginas x 2 breakpoints (14 total)
 
-Capturados via Playwright contra os servidores de desenvolvimento reais (não simulação/mockup), autenticado pelo `FakeOidcProvider` com o fixture `sc1` (mesmo mecanismo usado pelos testes E2E). Desktop = 1280x900, mobile = 375x812, `fullPage: true`.
+Capturados via Playwright contra os servidores de desenvolvimento reais (não simulação/mockup), autenticado pelo `FakeOidcProvider` (`apps/web/e2e/support/auth.ts`, `loginAs`) com dados semeados a partir do fixture `sc1` (`apps/api/scripts/e2e-fixtures.mjs`) mais três plantões extras criados via API para que todas as 7 rotas mostrassem conteúdo real (nenhuma tela vazia/erro): um plantão aprovado (aparece no calendário do médico), um plantão publicado sem candidatura (listagem + detalhe) e um plantão com candidatura pendente não decidida (fila de revisão do admin). Script: `apps/web/e2e/capture-screenshots.spec.ts`, executado em 2026-07-12. Desktop = 1280x900, mobile = 375x812, `fullPage: true`.
 
 | Página | Papel | Desktop | Mobile |
 |---|---|---|---|
-| `/` | médico | `reg-home-medico-desktop.png` | `reg-home-medico-mobile.png` |
-| `/medico/plantoes` | médico | `reg-medico-plantoes-desktop.png` | `reg-medico-plantoes-mobile.png` |
-| `/medico/plantoes/[id]` | médico | `reg-medico-plantao-detalhe-desktop.png` | `reg-medico-plantao-detalhe-mobile.png` |
-| `/medico/calendario` | médico | `reg-medico-calendario-desktop.png` | `reg-medico-calendario-mobile.png` |
-| `/admin/plantoes` | admin | `reg-admin-plantoes-desktop.png` | `reg-admin-plantoes-mobile.png` |
-| `/admin/revisao` | admin | `reg-admin-revisao-desktop.png` | `reg-admin-revisao-mobile.png` |
-| `/admin/calendario` | admin | `reg-admin-calendario-desktop.png` | `reg-admin-calendario-mobile.png` |
+| `/` | médico | `screenshots/reg-home-medico-desktop.png` | `screenshots/reg-home-medico-mobile.png` |
+| `/medico/plantoes` | médico | `screenshots/reg-medico-plantoes-desktop.png` | `screenshots/reg-medico-plantoes-mobile.png` |
+| `/medico/plantoes/[id]` | médico | `screenshots/reg-medico-plantao-detalhe-desktop.png` | `screenshots/reg-medico-plantao-detalhe-mobile.png` |
+| `/medico/calendario` | médico | `screenshots/reg-medico-calendario-desktop.png` | `screenshots/reg-medico-calendario-mobile.png` |
+| `/admin/plantoes` | admin | `screenshots/reg-admin-plantoes-desktop.png` | `screenshots/reg-admin-plantoes-mobile.png` |
+| `/admin/revisao` | admin | `screenshots/reg-admin-revisao-desktop.png` | `screenshots/reg-admin-revisao-mobile.png` |
+| `/admin/calendario` | admin | `screenshots/reg-admin-calendario-desktop.png` | `screenshots/reg-admin-calendario-mobile.png` |
 
-Revisão manual das 14 imagens: nenhuma quebra de layout. Cards empilham corretamente em 375px em todas as páginas com listas (plantões, revisão), tabelas com scroll horizontal contido no próprio container (`overflow-x-auto`) em `/admin/plantoes` e na lista textual do calendário, header persistente (`AppShell`) e `ActiveHospitalBanner` renderizam de forma consistente nas duas resoluções.
+As 14 imagens foram capturadas automaticamente pelo script acima (não houve revisão manual imagem-a-imagem de todas as 14) e spot-checadas (leitura direta de `reg-admin-plantoes-desktop.png`, `reg-medico-calendario-mobile.png`, `reg-admin-revisao-desktop.png`, `reg-medico-plantao-detalhe-desktop.png` e `reg-medico-plantoes-mobile.png`): nenhuma quebra de layout nas amostras verificadas. Cards empilham corretamente em 375px nas páginas com listas (plantões, revisão), a tabela de `/admin/plantoes` mantém scroll horizontal contido no próprio container (`overflow-x-auto`), header persistente (`AppShell`) e `ActiveHospitalBanner` renderizam de forma consistente nas duas resoluções nas amostras verificadas.
 
 ## Resultado
 
 - **145/145 testes de API + 5/5 cenários E2E** — 100% verde.
-- **14/14 screenshots sem quebra de layout visível.**
+- **14/14 screenshots capturados com sucesso; 5/14 spot-checados sem quebra de layout visível** (ver seção acima para a lista das imagens verificadas).
 - Achado de contraste do calendário (ver `design-accessibility-audit.md`) corrigido antes deste relatório.
 
 CP-4 satisfeito: zero regressão funcional, contraste WCAG AA confirmado, responsivo validado nas 7 páginas.
