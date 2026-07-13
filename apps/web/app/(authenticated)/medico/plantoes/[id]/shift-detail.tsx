@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import type { ShiftSummary } from "@plantoes/shared";
+import type { ShiftHospitalDto, ShiftSummary } from "@plantoes/shared";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,6 +131,8 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
         </dl>
       </Card>
 
+      <HospitalCard hospital={shift.hospital} />
+
       {submit === "success" ? (
         <div
           ref={resultRef}
@@ -164,4 +166,26 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
 
 function isRejectionBody(body: unknown): body is { reason: string } {
   return typeof body === "object" && body !== null && "reason" in body && typeof (body as { reason: unknown }).reason === "string";
+}
+
+/** Só renderiza se ao menos um dos campos de perfil do hospital estiver presente -- nunca um card vazio. */
+function HospitalCard({ hospital }: { hospital: ShiftHospitalDto }) {
+  const location = hospital.address ?? hospital.city;
+  const hasContent = Boolean(location || hospital.description || hospital.photoUrl);
+  if (!hasContent) {
+    return null;
+  }
+
+  return (
+    <Card className="mb-6">
+      <h2 className="text-base font-semibold text-slate-900">Sobre o hospital</h2>
+      <p className="text-sm text-slate-900">{hospital.name}</p>
+      {location && <p className="mt-1 text-sm text-slate-600">{location}</p>}
+      {hospital.description && <p className="mt-2 text-sm text-slate-700">{hospital.description}</p>}
+      {hospital.photoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- perfil simples, sem otimização de imagem necessária
+        <img src={hospital.photoUrl} alt={hospital.name} className="mt-3 max-h-48 w-full rounded-lg object-cover" />
+      )}
+    </Card>
+  );
 }
