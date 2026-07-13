@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ShiftStatus, type Prisma } from "@prisma/client";
 import type { Span } from "@opentelemetry/api";
+import type { ShiftHospitalDto } from "@plantoes/shared";
 import { TenantContextService } from "../organizations/tenant-context";
 import { telemetry, withSpan } from "../observability/telemetry";
 import { logEvent } from "../observability/structured-logger";
@@ -23,11 +24,20 @@ export interface SearchShiftsResult {
     valueCents: number;
     startsAt: Date;
     endsAt: Date;
+    hospital: ShiftHospitalDto;
   }>;
   page: number;
   pageSize: number;
   total: number;
 }
+
+const ORGANIZATION_HOSPITAL_SELECT = {
+  name: true,
+  city: true,
+  address: true,
+  description: true,
+  photoUrl: true,
+} satisfies Prisma.OrganizationSelect;
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -126,16 +136,25 @@ export class SearchShiftsQuery {
           : {}),
       };
 
-      const [items, total] = await Promise.all([
+      const [rows, total] = await Promise.all([
         tx.shift.findMany({
           where,
           orderBy: [{ startsAt: "asc" }, { id: "asc" }],
           skip: (page - 1) * pageSize,
           take: pageSize,
-          select: { id: true, specialty: true, valueCents: true, startsAt: true, endsAt: true },
+          select: {
+            id: true,
+            specialty: true,
+            valueCents: true,
+            startsAt: true,
+            endsAt: true,
+            organization: { select: ORGANIZATION_HOSPITAL_SELECT },
+          },
         }),
         tx.shift.count({ where }),
       ]);
+
+      const items = rows.map(({ organization, ...shift }) => ({ ...shift, hospital: organization }));
 
       span.setAttribute("shifts.result_count", items.length);
       telemetry.shiftSearchCounter.add(1);
@@ -154,13 +173,21 @@ export class SearchShiftsQuery {
     const shift = await this.tenantContext.withTenantScope(organizationId, (tx) =>
       tx.shift.findFirst({
         where: { id: shiftId, organizationId, status: ShiftStatus.PUBLISHED },
-        select: { id: true, specialty: true, valueCents: true, startsAt: true, endsAt: true },
+        select: {
+          id: true,
+          specialty: true,
+          valueCents: true,
+          startsAt: true,
+          endsAt: true,
+          organization: { select: ORGANIZATION_HOSPITAL_SELECT },
+        },
       }),
     );
     if (!shift) {
       throw new NotFoundException("Plantão não encontrado");
     }
-    return shift;
+    const { organization, ...rest } = shift;
+    return { ...rest, hospital: organization };
   }
 
   /**
