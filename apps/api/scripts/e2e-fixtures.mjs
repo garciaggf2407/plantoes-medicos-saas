@@ -217,7 +217,57 @@ async function seedSc5() {
   };
 }
 
-const SEEDERS = { sc1: seedSc1, sc2: seedSc2, sc3: seedSc3, sc4: seedSc4, sc5: seedSc5 };
+async function seedSc6() {
+  // BP-2026-07-13-001, T-4.1.1: SUPERADMIN navega hospitais de 2
+  // cidades diferentes; médico sem cidade cadastrada troca de cidade
+  // na busca; HOSPITAL_ADMIN é bloqueado em /admin/superadmin.
+  const suffix = tag();
+  const cityA = `E2ECidadeUm-${suffix}`;
+  const cityB = `E2ECidadeDois-${suffix}`;
+
+  const orgA = await prisma.organization.create({
+    data: { name: `e2e-sc6-org-a-${suffix}`, timezone: "America/Sao_Paulo", city: cityA },
+  });
+  const adminA = await prisma.user.create({
+    data: { oidcSubject: `e2e-sc6-admin-a-${suffix}`, email: `e2e-sc6-admin-a-${suffix}@example.com`, role: "HOSPITAL_ADMIN", organizationId: orgA.id },
+  });
+  const shiftA = await withTenantScope(orgA.id, (tx) =>
+    tx.shift.create({
+      data: { organizationId: orgA.id, specialty: "Clinica Geral", valueCents: 60000, startsAt: new Date("2026-10-05T08:00:00Z"), endsAt: new Date("2026-10-05T16:00:00Z"), status: "PUBLISHED", createdByUserId: adminA.id },
+    }),
+  );
+
+  const orgB = await prisma.organization.create({
+    data: { name: `e2e-sc6-org-b-${suffix}`, timezone: "America/Sao_Paulo", city: cityB },
+  });
+  const adminB = await prisma.user.create({
+    data: { oidcSubject: `e2e-sc6-admin-b-${suffix}`, email: `e2e-sc6-admin-b-${suffix}@example.com`, role: "HOSPITAL_ADMIN", organizationId: orgB.id },
+  });
+  const shiftB = await withTenantScope(orgB.id, (tx) =>
+    tx.shift.create({
+      data: { organizationId: orgB.id, specialty: "Clinica Geral", valueCents: 65000, startsAt: new Date("2026-10-06T08:00:00Z"), endsAt: new Date("2026-10-06T16:00:00Z"), status: "PUBLISHED", createdByUserId: adminB.id },
+    }),
+  );
+
+  const superadmin = await prisma.user.create({
+    data: { oidcSubject: `e2e-sc6-superadmin-${suffix}`, email: `e2e-sc6-superadmin-${suffix}@example.com`, role: "SUPERADMIN" },
+  });
+
+  const doctorNoCity = await prisma.user.create({
+    data: { oidcSubject: `e2e-sc6-doctor-${suffix}`, email: `e2e-sc6-doctor-${suffix}@example.com`, role: "DOCTOR" },
+  });
+  await prisma.doctorProfile.create({ data: { userId: doctorNoCity.id, crmNumber: `CRM-SC6-${suffix}`, specialties: ["Clinica Geral"] } });
+
+  return {
+    orgAId: orgA.id, orgAName: orgA.name, cityA, shiftAId: shiftA.id,
+    orgBId: orgB.id, orgBName: orgB.name, cityB, shiftBId: shiftB.id,
+    adminASubject: adminA.oidcSubject, adminAEmail: adminA.email,
+    superadminSubject: superadmin.oidcSubject, superadminEmail: superadmin.email,
+    doctorSubject: doctorNoCity.oidcSubject, doctorEmail: doctorNoCity.email,
+  };
+}
+
+const SEEDERS = { sc1: seedSc1, sc2: seedSc2, sc3: seedSc3, sc4: seedSc4, sc5: seedSc5, sc6: seedSc6 };
 
 async function cleanup(scenario) {
   const prefix = `e2e-${scenario}-`;

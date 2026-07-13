@@ -68,13 +68,31 @@ export interface Sc5Fixture {
   doctor2Subject: string;
 }
 
+export interface Sc6Fixture {
+  orgAId: string;
+  orgAName: string;
+  cityA: string;
+  shiftAId: string;
+  orgBId: string;
+  orgBName: string;
+  cityB: string;
+  shiftBId: string;
+  adminASubject: string;
+  adminAEmail: string;
+  superadminSubject: string;
+  superadminEmail: string;
+  doctorSubject: string;
+  doctorEmail: string;
+}
+
 export const seedSc1 = () => runFixtureScript<Sc1Fixture>(["seed", "sc1"]);
 export const seedSc2 = () => runFixtureScript<Sc2Fixture>(["seed", "sc2"]);
 export const seedSc3 = () => runFixtureScript<Sc3Fixture>(["seed", "sc3"]);
 export const seedSc4 = () => runFixtureScript<Sc4Fixture>(["seed", "sc4"]);
 export const seedSc5 = () => runFixtureScript<Sc5Fixture>(["seed", "sc5"]);
+export const seedSc6 = () => runFixtureScript<Sc6Fixture>(["seed", "sc6"]);
 
-export const cleanup = (scenario: "sc1" | "sc2" | "sc3" | "sc4" | "sc5") =>
+export const cleanup = (scenario: "sc1" | "sc2" | "sc3" | "sc4" | "sc5" | "sc6") =>
   runFixtureScript<{ orgIds: string[]; userIds: string[] }>(["cleanup", scenario]);
 
 export const checkNotification = (userId: string, type: string) =>
