@@ -15,6 +15,7 @@ const NAV_BY_ROLE: Record<string, Array<{ href: string; label: string }>> = {
     { href: "/admin/plantoes", label: "Gestão de plantões" },
     { href: "/admin/revisao", label: "Fila de revisão" },
     { href: "/admin/calendario", label: "Calendário da unidade" },
+    { href: "/admin/hospital", label: "Perfil do hospital" },
   ],
 };
 
