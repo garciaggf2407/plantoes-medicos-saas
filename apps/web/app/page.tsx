@@ -17,6 +17,7 @@ const NAV_BY_ROLE: Record<string, Array<{ href: string; label: string }>> = {
     { href: "/admin/calendario", label: "Calendário da unidade" },
     { href: "/admin/hospital", label: "Perfil do hospital" },
   ],
+  SUPERADMIN: [{ href: "/admin/superadmin", label: "Todos os hospitais" }],
 };
 
 export default function Home() {
@@ -32,16 +33,16 @@ export default function Home() {
         <nav aria-label="Navegação principal" className="flex flex-col gap-3">
           {items.map((item) => (
             <Link key={item.href} href={item.href}>
-              <Card className="font-medium text-slate-900 transition-colors hover:bg-slate-50">{item.label}</Card>
+              <Card className="font-medium text-label transition-colors hover:bg-background">{item.label}</Card>
             </Link>
           ))}
         </nav>
       )}
 
       {role === "SUPERADMIN" && (
-        <p className="text-sm text-slate-600">
-          Ações de superadmin (provisionar hospital) ainda não têm interface — disponíveis via API
-          (<code>POST /organizations</code>).
+        <p className="text-sm text-label-secondary">
+          Provisionar um novo hospital ainda não tem interface — disponível via API
+          (<code>POST /organizations</code>). Visualizar hospitais já provisionados está disponível acima.
         </p>
       )}
     </AppShell>
