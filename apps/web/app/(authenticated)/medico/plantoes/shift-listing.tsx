@@ -8,11 +8,14 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 
 const PAGE_SIZE = 10;
+
+const DEFAULT_DESCRIPTION = "Filtre e candidate-se aos plantões abertos no seu hospital.";
 
 const INPUT_CLASS =
   "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
@@ -101,12 +104,25 @@ export function ShiftListing() {
     router.push(`/medico/plantoes?${next.toString()}`);
   }
 
+  // Todos os itens de uma busca compartilham o mesmo hospital (organizationId
+  // fixo por busca) -- lemos do primeiro item, sem repetir por card.
+  const firstHospital = state.status === "ready" ? state.data.items[0]?.hospital : undefined;
+  const description = firstHospital
+    ? `${firstHospital.name}${firstHospital.city ? ` — ${firstHospital.city}` : ""}`
+    : DEFAULT_DESCRIPTION;
+
   if (!organizationId) {
-    return <EmptyState message="Informe o hospital para buscar plantões (parâmetro organizationId na URL)." />;
+    return (
+      <div>
+        <PageHeader title="Plantões disponíveis" description={DEFAULT_DESCRIPTION} />
+        <EmptyState message="Informe o hospital para buscar plantões (parâmetro organizationId na URL)." />
+      </div>
+    );
   }
 
   return (
     <div>
+      <PageHeader title="Plantões disponíveis" description={description} />
       <form
         onSubmit={handleFilterSubmit}
         aria-label="Filtros de busca"
