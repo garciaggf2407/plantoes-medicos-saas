@@ -12,13 +12,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { CitySelector } from "./city-selector";
 
 const PAGE_SIZE = 10;
 
-const DEFAULT_DESCRIPTION = "Filtre e candidate-se aos plantões abertos no seu hospital.";
+const DEFAULT_DESCRIPTION = "Filtre e candidate-se aos plantões publicados.";
+const NO_CITY_MESSAGE = "Escolha uma cidade para ver os plantões disponíveis.";
 
 const INPUT_CLASS =
-  "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
+  "rounded-control border border-separator px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -38,21 +40,33 @@ export function ShiftListing() {
   const searchParams = useSearchParams();
 
   const organizationId = searchParams.get("organizationId") ?? "";
+  const city = searchParams.get("city") ?? "";
   const specialty = searchParams.get("specialty") ?? "";
   const minValueReais = searchParams.get("minValueReais") ?? "";
   const maxValueReais = searchParams.get("maxValueReais") ?? "";
   const page = Number(searchParams.get("page") ?? "1") || 1;
 
+  // organizationId (deep link legado de um hospital específico) tem
+  // prioridade sobre city se ambos vierem na URL -- na prática isso só
+  // acontece por um instante, entre o médico trocar de cidade e o
+  // parâmetro organizationId ser removido (ver handleCityChange).
+  const hasFilterTarget = Boolean(organizationId || city);
+
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
-    if (!organizationId) {
+    if (!hasFilterTarget) {
       return;
     }
     let cancelled = false;
     setState({ status: "loading" });
 
-    const query = new URLSearchParams({ organizationId, page: String(page), pageSize: String(PAGE_SIZE) });
+    const query = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (organizationId) {
+      query.set("organizationId", organizationId);
+    } else {
+      query.set("city", city);
+    }
     if (specialty) query.set("specialty", specialty);
     if (minValueReais) query.set("minValueCents", String(Math.round(Number(minValueReais) * 100)));
     if (maxValueReais) query.set("maxValueCents", String(Math.round(Number(maxValueReais) * 100)));
@@ -73,7 +87,7 @@ export function ShiftListing() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, specialty, minValueReais, maxValueReais, page]);
+  }, [hasFilterTarget, organizationId, city, specialty, minValueReais, maxValueReais, page]);
 
   function updateParams(updates: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams.toString());
@@ -104,91 +118,105 @@ export function ShiftListing() {
     router.push(`/medico/plantoes?${next.toString()}`);
   }
 
-  // Todos os itens de uma busca compartilham o mesmo hospital (organizationId
-  // fixo por busca) -- lemos do primeiro item, sem repetir por card.
-  const firstHospital = state.status === "ready" ? state.data.items[0]?.hospital : undefined;
+  function handleCityChange(nextCity: string) {
+    // Trocar de cidade sempre substitui um eventual organizationId de
+    // deep link -- cidade e hospital único são alternativas, nunca
+    // combinadas (ver GET /shifts/search no backend).
+    updateParams({ city: nextCity || null, organizationId: null });
+  }
+
+  // organizationId (deep link de um hospital só): descrição mostra o
+  // hospital daquele item, igual ao comportamento original. city
+  // (multi-hospital): não há um único hospital para descrever.
+  const firstHospital = organizationId && state.status === "ready" ? state.data.items[0]?.hospital : undefined;
   const description = firstHospital
     ? `${firstHospital.name}${firstHospital.city ? ` — ${firstHospital.city}` : ""}`
-    : DEFAULT_DESCRIPTION;
-
-  if (!organizationId) {
-    return (
-      <div>
-        <PageHeader title="Plantões disponíveis" description={DEFAULT_DESCRIPTION} />
-        <EmptyState message="Informe o hospital para buscar plantões (parâmetro organizationId na URL)." />
-      </div>
-    );
-  }
+    : city
+      ? `Plantões em ${city}.`
+      : DEFAULT_DESCRIPTION;
 
   return (
     <div>
       <PageHeader title="Plantões disponíveis" description={description} />
-      <form
-        onSubmit={handleFilterSubmit}
-        aria-label="Filtros de busca"
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-      >
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Especialidade
-          <input name="specialty" defaultValue={specialty} type="text" className={INPUT_CLASS} placeholder="Ex.: Cardiologia" />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Valor mínimo (R$)
-          <input name="minValueReais" defaultValue={minValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm text-slate-700">
-          Valor máximo (R$)
-          <input name="maxValueReais" defaultValue={maxValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
-        </label>
-        <Button type="submit" size="sm">
-          Filtrar
-        </Button>
-      </form>
 
-      {state.status === "loading" && <LoadingState message="Carregando plantões…" />}
-      {state.status === "error" && <ErrorState message={state.message} />}
-      {state.status === "ready" && state.data.items.length === 0 && (
-        <EmptyState message="Nenhum plantão encontrado com esses filtros." />
+      {!organizationId && (
+        <div className="mb-4">
+          <CitySelector value={city} onChange={handleCityChange} />
+        </div>
       )}
-      {state.status === "ready" && state.data.items.length > 0 && (
-        <>
-          <ul className="flex flex-col gap-3">
-            {state.data.items.map((shift) => (
-              <li key={shift.id}>
-                <Link href={`/medico/plantoes/${shift.id}?organizationId=${organizationId}`} className="block">
-                  <Card className="flex flex-wrap items-center justify-between gap-3 transition-colors hover:bg-slate-50">
-                    <div>
-                      <Badge variant="neutral" className="mb-1.5">
-                        {shift.specialty}
-                      </Badge>
-                      <div className="text-sm text-slate-600">
-                        {formatDateTime(shift.startsAt)} — {formatDateTime(shift.endsAt)}
-                      </div>
-                    </div>
-                    <div className="font-medium text-slate-900">{centsToReais(shift.valueCents)}</div>
-                  </Card>
-                </Link>
-              </li>
-            ))}
-          </ul>
 
-          <nav aria-label="Paginação" className="mt-4 flex items-center gap-3">
-            <Button type="button" variant="secondary" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
-              Anterior
+      {!hasFilterTarget ? (
+        <EmptyState message={NO_CITY_MESSAGE} />
+      ) : (
+        <>
+          <form
+            onSubmit={handleFilterSubmit}
+            aria-label="Filtros de busca"
+            className="mb-6 flex flex-wrap items-end gap-3 rounded-card bg-surface p-4 shadow-card"
+          >
+            <label className="flex flex-col gap-1 text-sm text-label-secondary">
+              Especialidade
+              <input name="specialty" defaultValue={specialty} type="text" className={INPUT_CLASS} placeholder="Ex.: Cardiologia" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-label-secondary">
+              Valor mínimo (R$)
+              <input name="minValueReais" defaultValue={minValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-label-secondary">
+              Valor máximo (R$)
+              <input name="maxValueReais" defaultValue={maxValueReais} type="number" min={0} step="0.01" className={INPUT_CLASS} />
+            </label>
+            <Button type="submit" size="sm">
+              Filtrar
             </Button>
-            <span aria-live="polite" className="text-sm text-slate-600">
-              Página {state.data.page} de {Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => goToPage(page + 1)}
-              disabled={page * PAGE_SIZE >= state.data.total}
-            >
-              Próxima
-            </Button>
-          </nav>
+          </form>
+
+          {state.status === "loading" && <LoadingState message="Carregando plantões…" />}
+          {state.status === "error" && <ErrorState message={state.message} />}
+          {state.status === "ready" && state.data.items.length === 0 && (
+            <EmptyState message="Nenhum plantão encontrado com esses filtros." />
+          )}
+          {state.status === "ready" && state.data.items.length > 0 && (
+            <>
+              <ul className="flex flex-col gap-3">
+                {state.data.items.map((shift) => (
+                  <li key={shift.id}>
+                    <Link href={`/medico/plantoes/${shift.id}?organizationId=${shift.organizationId}`} className="block">
+                      <Card className="flex flex-wrap items-center justify-between gap-3 transition-colors hover:bg-background">
+                        <div>
+                          <Badge variant="neutral" className="mb-1.5">
+                            {shift.specialty}
+                          </Badge>
+                          <div className="text-sm text-label-secondary">
+                            {formatDateTime(shift.startsAt)} — {formatDateTime(shift.endsAt)}
+                          </div>
+                        </div>
+                        <div className="font-medium text-label">{centsToReais(shift.valueCents)}</div>
+                      </Card>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              <nav aria-label="Paginação" className="mt-4 flex items-center gap-3">
+                <Button type="button" variant="secondary" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
+                  Anterior
+                </Button>
+                <span aria-live="polite" className="text-sm text-label-secondary">
+                  Página {state.data.page} de {Math.max(1, Math.ceil(state.data.total / state.data.pageSize))}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page * PAGE_SIZE >= state.data.total}
+                >
+                  Próxima
+                </Button>
+              </nav>
+            </>
+          )}
         </>
       )}
     </div>

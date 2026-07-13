@@ -2,12 +2,20 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { TenantContextService } from "../organizations/tenant-context";
+import { ListCitiesUseCase } from "../organizations/list-cities.use-case";
 import type { AuthenticatedUser } from "../identity/guards/authentication.guard";
 
 export interface DoctorProfileInput {
   crmNumber: string;
   specialties: string[];
   contactPhone?: string;
+  /**
+   * Cidade de preferência do médico -- sempre validada contra
+   * Organization.city já cadastradas (nunca texto livre, evita
+   * "Campinas" vs "campinas" vs "Campinas-SP" como cidades distintas).
+   * Filtro de conveniência para a busca de plantões, nunca uma trava.
+   */
+  city?: string;
 }
 
 export interface SubmitCredentialInput {
@@ -39,6 +47,9 @@ function validateDoctorProfileInput(input: DoctorProfileInput): void {
   if (input.contactPhone !== undefined && !PHONE_PATTERN.test(input.contactPhone)) {
     throw new BadRequestException("contactPhone em formato inválido");
   }
+  if (input.city !== undefined && input.city.trim().length === 0) {
+    throw new BadRequestException("city não pode ser vazia quando enviada");
+  }
 }
 
 /**
@@ -53,6 +64,7 @@ export class CredentialsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
+    private readonly listCities: ListCitiesUseCase,
   ) {}
 
   async upsertOwnProfile(actor: AuthenticatedUser, input: DoctorProfileInput) {
@@ -61,10 +73,19 @@ export class CredentialsService {
     }
     validateDoctorProfileInput(input);
 
+    const city = input.city?.trim();
+    if (city !== undefined) {
+      const exists = await this.listCities.cityExists(city);
+      if (!exists) {
+        throw new BadRequestException("city informada não corresponde a nenhum hospital cadastrado (ver GET /cities)");
+      }
+    }
+
     const data = {
       crmNumber: input.crmNumber.trim(),
       specialties: input.specialties.map((s) => s.trim()),
       contactPhone: input.contactPhone?.trim(),
+      city,
     };
 
     return this.tenantContext.withSelfAuthoredAudit(actor.id, async (tx) => {

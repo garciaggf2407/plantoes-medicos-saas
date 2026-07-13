@@ -31,6 +31,7 @@ describe("Perfil médico e credenciais (integração)", () => {
 
   let orgA: { id: string };
   let orgB: { id: string };
+  const orgACity = `Cidade Perfil ${randomUUID()}`;
   const createdUserIds: string[] = [];
 
   function cookieFor(subject: string): string {
@@ -55,7 +56,7 @@ describe("Perfil médico e credenciais (integração)", () => {
     sessions = moduleRef.get(SessionService);
     tenantContext = moduleRef.get(TenantContextService);
 
-    orgA = await prisma.organization.create({ data: { name: `Hospital A ${randomUUID()}`, timezone: "America/Sao_Paulo" } });
+    orgA = await prisma.organization.create({ data: { name: `Hospital A ${randomUUID()}`, timezone: "America/Sao_Paulo", city: orgACity } });
     orgB = await prisma.organization.create({ data: { name: `Hospital B ${randomUUID()}`, timezone: "America/Sao_Paulo" } });
 
     adminSameOrg = { subject: `admin-a-${randomUUID()}`, email: `admin-a-${randomUUID()}@example.com` };
@@ -143,6 +144,39 @@ describe("Perfil médico e credenciais (integração)", () => {
 
       expect(resA.body.crmNumber).not.toBe(resB.body.crmNumber);
       expect(resB.body.crmNumber).toBe("CRM-B-0001");
+    });
+
+    it("aceita e persiste city quando ela corresponde a um hospital cadastrado (BP-2026-07-13-001)", async () => {
+      const putRes = await request(app.getHttpServer())
+        .put("/doctors/me/profile")
+        .set("Cookie", cookieFor(doctorA.subject))
+        .send({ crmNumber: "CRM-12345", specialties: ["Cardiologia"], city: orgACity });
+      expect(putRes.status).toBe(200);
+      expect(putRes.body.city).toBe(orgACity);
+
+      const getRes = await request(app.getHttpServer()).get("/doctors/me/profile").set("Cookie", cookieFor(doctorA.subject));
+      expect(getRes.status).toBe(200);
+      expect(getRes.body.city).toBe(orgACity);
+    });
+
+    it("rejeita city que não corresponde a nenhum hospital cadastrado com 400", async () => {
+      const res = await request(app.getHttpServer())
+        .put("/doctors/me/profile")
+        .set("Cookie", cookieFor(doctorA.subject))
+        .send({ crmNumber: "CRM-12345", specialties: ["Cardiologia"], city: `Cidade Inexistente ${randomUUID()}` });
+      expect(res.status).toBe(400);
+    });
+
+    it("médico sem city cadastrada (dado legado) continua funcionando — GET retorna city null", async () => {
+      const putRes = await request(app.getHttpServer())
+        .put("/doctors/me/profile")
+        .set("Cookie", cookieFor(doctorB.subject))
+        .send({ crmNumber: "CRM-B-0001", specialties: ["Ortopedia"] });
+      expect(putRes.status).toBe(200);
+      expect(putRes.body.city).toBeNull();
+
+      const getRes = await request(app.getHttpServer()).get("/doctors/me/profile").set("Cookie", cookieFor(doctorB.subject));
+      expect(getRes.body.city).toBeNull();
     });
   });
 

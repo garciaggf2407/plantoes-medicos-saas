@@ -24,6 +24,15 @@ export interface SearchShiftsResult {
     valueCents: number;
     startsAt: Date;
     endsAt: Date;
+    /**
+     * Hospital dono do plantão. Necessário item a item (não só como
+     * filtro da busca) porque a busca por cidade (T-3.1.3) mescla
+     * plantões de VÁRIOS hospitais numa única resposta -- sem isso, o
+     * cliente não teria como montar o link de detalhe/candidatura
+     * (GET /shifts/:id exige organizationId) para um item que não veio
+     * do hospital único da busca original.
+     */
+    organizationId: string;
     hospital: ShiftHospitalDto;
   }>;
   page: number;
@@ -154,7 +163,11 @@ export class SearchShiftsQuery {
         tx.shift.count({ where }),
       ]);
 
-      const items = rows.map(({ organization, ...shift }) => ({ ...shift, hospital: organization }));
+      const items = rows.map(({ organization, ...shift }) => ({
+        ...shift,
+        organizationId: filters.organizationId,
+        hospital: organization,
+      }));
 
       span.setAttribute("shifts.result_count", items.length);
       telemetry.shiftSearchCounter.add(1);
@@ -187,7 +200,7 @@ export class SearchShiftsQuery {
       throw new NotFoundException("Plantão não encontrado");
     }
     const { organization, ...rest } = shift;
-    return { ...rest, hospital: organization };
+    return { ...rest, organizationId, hospital: organization };
   }
 
   /**

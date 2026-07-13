@@ -6,9 +6,12 @@ import type { AuthenticatedUser } from "../identity/guards/authentication.guard"
 import { TenantContextService } from "../organizations/tenant-context";
 import { ShiftCommandsService, type DraftShiftInput, type EditShiftInput } from "./shift-commands.service";
 import { SearchShiftsQuery } from "./search-shifts.query";
+import { SearchShiftsByCityQuery } from "./search-shifts-by-city.query";
 
 interface SearchShiftsQueryParams {
-  organizationId: string;
+  /** Ao menos um entre organizationId e city é esperado; sem nenhum, usa a cidade cadastrada do médico autenticado (BP-2026-07-13-001). */
+  organizationId?: string;
+  city?: string;
   specialty?: string;
   minValueCents?: string;
   maxValueCents?: string;
@@ -24,6 +27,7 @@ export class ShiftsController {
   constructor(
     private readonly shiftCommands: ShiftCommandsService,
     private readonly searchShifts: SearchShiftsQuery,
+    private readonly searchShiftsByCity: SearchShiftsByCityQuery,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -34,11 +38,17 @@ export class ShiftsController {
     return this.searchShifts.listForAdmin(organizationId);
   }
 
+  /**
+   * organizationId presente: exatamente o comportamento pré-existente
+   * (retrocompatibilidade — mesma chamada, zero lógica nova nesse
+   * caminho). Sem organizationId: busca por cidade (city explícita ou,
+   * na ausência dela, a cidade cadastrada no perfil do médico
+   * autenticado) — ver SearchShiftsByCityQuery.
+   */
   @Get("search")
   @Roles(UserRole.DOCTOR, UserRole.HOSPITAL_ADMIN)
-  async search(@CurrentUser() _actor: AuthenticatedUser, @Query() query: SearchShiftsQueryParams) {
-    return this.searchShifts.execute({
-      organizationId: query.organizationId,
+  async search(@CurrentUser() actor: AuthenticatedUser, @Query() query: SearchShiftsQueryParams) {
+    const commonFilters = {
       specialty: query.specialty,
       minValueCents: query.minValueCents !== undefined ? Number(query.minValueCents) : undefined,
       maxValueCents: query.maxValueCents !== undefined ? Number(query.maxValueCents) : undefined,
@@ -46,7 +56,13 @@ export class ShiftsController {
       to: query.to,
       page: query.page !== undefined ? Number(query.page) : undefined,
       pageSize: query.pageSize !== undefined ? Number(query.pageSize) : undefined,
-    });
+    };
+
+    if (query.organizationId) {
+      return this.searchShifts.execute({ organizationId: query.organizationId, ...commonFilters });
+    }
+
+    return this.searchShiftsByCity.execute(actor, { city: query.city, ...commonFilters });
   }
 
   @Get(":id")
