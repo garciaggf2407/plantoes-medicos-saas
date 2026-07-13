@@ -266,4 +266,32 @@ tardia**: `apps/api/test/support/admin-prisma.ts` já tinha a senha real do `pos
 `pg_hba.conf` se eu tivesse checado esse arquivo primeiro. Registrar para a próxima sessão:
 checar `test/support/admin-prisma.ts` antes de qualquer bloqueio de DDL.
 
-### E-2 (portal médico) + E-3 (portal admin) — em andamento, paralelos via subagentes
+### E-2 (portal médico) + E-3 (portal admin) — DONE, CP-2/CP-3 PASSED
+
+Executados em paralelo por 2 subagentes (independentes por design do blueprint — nenhum
+tocou arquivo do outro). ~4-5min cada.
+
+- T-2.1.1: `search-shifts.query.ts` (`execute()`/`getPublishedById()`) agora inclui
+  `hospital: {name,city,address,description,photoUrl}` no retorno. `listForAdmin()`
+  inalterado (fora de escopo).
+- T-2.2.1: listagem (`shift-listing.tsx`) mostra nome+cidade do hospital no `PageHeader`
+  assim que a busca carrega.
+- T-2.2.2: detalhe do plantão ganha Card "Sobre o hospital" (nome/endereço-ou-cidade/
+  descrição/foto), omitido por completo se não há nenhum dado.
+- T-3.1.1: nova página `/admin/hospital` (`page.tsx` + `hospital-profile-form.tsx`) —
+  formulário de edição consumindo `GET`/`PATCH /organizations/me`, `name`/`timezone`
+  somente-leitura.
+- T-3.1.2: card "Perfil do hospital" adicionado a `NAV_BY_ROLE.HOSPITAL_ADMIN` na home.
+- **CP-2/CP-3: 150/150 API + build/lint limpos (web e api) + SC-1..SC-5 de
+  `success-criteria.spec.ts` (blueprint BP-2026-07-11-002) rodados de fato, 6/6 verdes**
+  — confirmando que as mudanças de UI não quebraram candidatura/aprovação/notificação.
+
+### E-4 (QA e regressão) — DONE, CP-4 PASSED
+
+- T-4.1.1: `apps/web/e2e/hospital-profile.spec.ts` — 2 cenários (edição reflete para o
+  médico; isolamento cross-tenant verificado via navegador real, não só supertest).
+- T-4.1.2: `reports/hospital-profile-regression.md` — **150/150 testes de API + 8/8 E2E**
+  (5 pré-existentes + 2 novos + 1 script de captura de screenshot) na rodada final.
+
+**Blueprint BP-2026-07-12-001 concluído: 12/12 tasks, 4/4 epics, CP-1/CP-2/CP-3/CP-4 todos
+PASSED.** P6-LEARN ainda não executado.
