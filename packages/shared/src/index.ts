@@ -4,12 +4,30 @@ export interface OrganizationScoped {
   organizationId: string;
 }
 
+export interface ShiftHospitalDto {
+  name: string;
+  city: string | null;
+  address: string | null;
+  description: string | null;
+  photoUrl: string | null;
+}
+
 export interface ShiftSummary {
   id: string;
   specialty: string;
   valueCents: number;
   startsAt: string;
   endsAt: string;
+  hospital: ShiftHospitalDto;
+}
+
+export interface OrganizationProfileDto {
+  name: string;
+  timezone: string;
+  city: string | null;
+  address: string | null;
+  description: string | null;
+  photoUrl: string | null;
 }
 
 export interface SearchShiftsResponse {
