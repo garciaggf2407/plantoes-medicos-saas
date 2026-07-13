@@ -26,7 +26,7 @@ const STATUS_BADGE: Record<string, BadgeVariant> = {
 };
 
 const INPUT_CLASS =
-  "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
+  "rounded-control border border-separator px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 function centsToReais(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -135,9 +135,9 @@ export function AdminShifts() {
   return (
     <div>
       <Card className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Novo plantão</h2>
+        <h2 className="mb-3 text-sm font-semibold text-label">Novo plantão</h2>
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
+          <label className="flex flex-col gap-1 text-sm text-label-secondary">
             Especialidade
             <input
               required
@@ -147,7 +147,7 @@ export function AdminShifts() {
               className={INPUT_CLASS}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
+          <label className="flex flex-col gap-1 text-sm text-label-secondary">
             Valor (R$)
             <input
               required
@@ -159,7 +159,7 @@ export function AdminShifts() {
               className={INPUT_CLASS}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
+          <label className="flex flex-col gap-1 text-sm text-label-secondary">
             Início
             <input
               required
@@ -169,7 +169,7 @@ export function AdminShifts() {
               className={INPUT_CLASS}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-700">
+          <label className="flex flex-col gap-1 text-sm text-label-secondary">
             Fim
             <input
               required
@@ -194,16 +194,16 @@ export function AdminShifts() {
       {!error && shifts === null && <LoadingState message="Carregando plantões…" />}
       {!error && shifts !== null && shifts.length === 0 && <EmptyState message="Nenhum plantão cadastrado ainda." />}
       {!error && shifts !== null && shifts.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-card bg-surface shadow-card">
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left">
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Especialidade</th>
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Início</th>
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Fim</th>
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Valor</th>
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Status</th>
-                <th scope="col" className="px-3 py-2 font-medium text-slate-700">Ações</th>
+              <tr className="border-b border-separator text-left">
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Especialidade</th>
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Início</th>
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Fim</th>
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Valor</th>
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Status</th>
+                <th scope="col" className="px-3 py-2 font-medium text-label-secondary">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -211,11 +211,11 @@ export function AdminShifts() {
                 editingId === shift.id ? (
                   <EditRow key={shift.id} shift={shift} onCancel={() => setEditingId(null)} onSave={(form) => handleSaveEdit(shift.id, form)} />
                 ) : (
-                  <tr key={shift.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2 text-slate-900">{shift.specialty}</td>
-                    <td className="px-3 py-2 text-slate-600">{new Date(shift.startsAt).toLocaleString("pt-BR")}</td>
-                    <td className="px-3 py-2 text-slate-600">{new Date(shift.endsAt).toLocaleString("pt-BR")}</td>
-                    <td className="px-3 py-2 text-slate-900">{centsToReais(shift.valueCents)}</td>
+                  <tr key={shift.id} className="border-b border-separator last:border-0">
+                    <td className="px-3 py-2 text-label">{shift.specialty}</td>
+                    <td className="px-3 py-2 text-label-secondary">{new Date(shift.startsAt).toLocaleString("pt-BR")}</td>
+                    <td className="px-3 py-2 text-label-secondary">{new Date(shift.endsAt).toLocaleString("pt-BR")}</td>
+                    <td className="px-3 py-2 text-label">{centsToReais(shift.valueCents)}</td>
                     <td className="px-3 py-2">
                       <Badge variant={STATUS_BADGE[shift.status] ?? "neutral"}>{STATUS_LABEL[shift.status] ?? shift.status}</Badge>
                     </td>
@@ -276,7 +276,7 @@ function EditRow({
   });
 
   return (
-    <tr className="border-b border-slate-100 bg-slate-50 last:border-0">
+    <tr className="border-b border-separator bg-background last:border-0">
       <td className="px-3 py-2">
         <input value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })} className={`w-full ${INPUT_CLASS}`} />
       </td>

@@ -101,7 +101,7 @@ export function ShiftCalendar({ events }: { events: ShiftCalendarEvent[] }) {
         ))}
       </ul>
 
-      <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+      <div className="w-full overflow-x-auto rounded-card bg-surface p-2 shadow-card">
         <FullCalendar
           key={view}
           plugins={[dayGridPlugin, timeGridPlugin]}
@@ -113,18 +113,18 @@ export function ShiftCalendar({ events }: { events: ShiftCalendarEvent[] }) {
         />
       </div>
 
-      <h2 className="mt-6 mb-2 text-sm font-semibold text-slate-900">Lista de plantões (alternativa textual)</h2>
+      <h2 className="mt-6 mb-2 text-sm font-semibold text-label">Lista de plantões (alternativa textual)</h2>
       {sortedForList.length === 0 ? (
         <EmptyState message="Nenhum plantão no período." />
       ) : (
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">Lista de plantões equivalente ao calendário visual, navegável por teclado</caption>
           <thead>
-            <tr className="border-b border-slate-200 text-left">
-              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Especialidade</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Início</th>
-              <th scope="col" className="py-1.5 pr-3 font-medium text-slate-700">Fim</th>
-              <th scope="col" className="py-1.5 font-medium text-slate-700">Estado</th>
+            <tr className="border-b border-separator text-left">
+              <th scope="col" className="py-1.5 pr-3 font-medium text-label-secondary">Especialidade</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium text-label-secondary">Início</th>
+              <th scope="col" className="py-1.5 pr-3 font-medium text-label-secondary">Fim</th>
+              <th scope="col" className="py-1.5 font-medium text-label-secondary">Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -134,12 +134,12 @@ export function ShiftCalendar({ events }: { events: ShiftCalendarEvent[] }) {
                 <tr
                   key={event.id}
                   tabIndex={0}
-                  className="border-b border-slate-100 focus:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-inset"
+                  className="border-b border-separator focus:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
                 >
-                  <td className="py-1.5 pr-3 text-slate-900">{event.title}</td>
-                  <td className="py-1.5 pr-3 text-slate-600">{formatDateTime(event.startsAt)}</td>
-                  <td className="py-1.5 pr-3 text-slate-600">{formatDateTime(event.endsAt)}</td>
-                  <td className={`py-1.5 ${meta?.textClass ?? "text-slate-600"}`}>
+                  <td className="py-1.5 pr-3 text-label">{event.title}</td>
+                  <td className="py-1.5 pr-3 text-label-secondary">{formatDateTime(event.startsAt)}</td>
+                  <td className="py-1.5 pr-3 text-label-secondary">{formatDateTime(event.endsAt)}</td>
+                  <td className={`py-1.5 ${meta?.textClass ?? "text-label-secondary"}`}>
                     {meta ? `${meta.symbol} ${meta.label}` : "—"}
                   </td>
                 </tr>

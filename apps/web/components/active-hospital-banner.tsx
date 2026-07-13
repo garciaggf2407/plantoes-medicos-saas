@@ -7,7 +7,7 @@ export function ActiveHospitalBanner({ me }: { me: MeResponse }) {
   return (
     <Card className="mb-4 flex items-center gap-3 py-3">
       <Badge variant="positive">Ativo</Badge>
-      <span className="text-sm text-slate-900">
+      <span className="text-sm text-label">
         <span className="font-medium">Hospital:</span> {me.organizationName ?? "—"}
       </span>
     </Card>

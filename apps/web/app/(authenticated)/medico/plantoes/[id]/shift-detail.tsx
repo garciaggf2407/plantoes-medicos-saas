@@ -85,7 +85,7 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
   const backLink = (
     <Link
       href={`/medico/plantoes?organizationId=${organizationId}`}
-      className="mb-4 inline-block text-sm text-slate-600 hover:text-slate-900"
+      className="mb-4 inline-block text-sm text-label-secondary hover:text-label"
     >
       ← Voltar à listagem
     </Link>
@@ -122,12 +122,12 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
       <PageHeader title={shift.specialty} description="Confirme os detalhes antes de se candidatar." />
       <Card className="mb-6">
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="font-medium text-slate-700">Início</dt>
-          <dd className="text-slate-900">{formatDateTime(shift.startsAt)}</dd>
-          <dt className="font-medium text-slate-700">Fim</dt>
-          <dd className="text-slate-900">{formatDateTime(shift.endsAt)}</dd>
-          <dt className="font-medium text-slate-700">Valor</dt>
-          <dd className="text-slate-900">{centsToReais(shift.valueCents)}</dd>
+          <dt className="font-medium text-label-secondary">Início</dt>
+          <dd className="text-label">{formatDateTime(shift.startsAt)}</dd>
+          <dt className="font-medium text-label-secondary">Fim</dt>
+          <dd className="text-label">{formatDateTime(shift.endsAt)}</dd>
+          <dt className="font-medium text-label-secondary">Valor</dt>
+          <dd className="text-label">{centsToReais(shift.valueCents)}</dd>
         </dl>
       </Card>
 
@@ -138,7 +138,7 @@ export function ShiftDetail({ shiftId }: { shiftId: string }) {
           ref={resultRef}
           tabIndex={-1}
           role="status"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+          className="rounded-card bg-positive-bg px-4 py-3 text-sm text-positive"
         >
           Candidatura enviada com sucesso! Aguarde a decisão do hospital.
         </div>
@@ -178,13 +178,13 @@ function HospitalCard({ hospital }: { hospital: ShiftHospitalDto }) {
 
   return (
     <Card className="mb-6">
-      <h2 className="text-base font-semibold text-slate-900">Sobre o hospital</h2>
-      <p className="text-sm text-slate-900">{hospital.name}</p>
-      {location && <p className="mt-1 text-sm text-slate-600">{location}</p>}
-      {hospital.description && <p className="mt-2 text-sm text-slate-700">{hospital.description}</p>}
+      <h2 className="text-base font-semibold text-label">Sobre o hospital</h2>
+      <p className="text-sm text-label">{hospital.name}</p>
+      {location && <p className="mt-1 text-sm text-label-secondary">{location}</p>}
+      {hospital.description && <p className="mt-2 text-sm text-label-secondary">{hospital.description}</p>}
       {hospital.photoUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- perfil simples, sem otimização de imagem necessária
-        <img src={hospital.photoUrl} alt={hospital.name} className="mt-3 max-h-48 w-full rounded-lg object-cover" />
+        <img src={hospital.photoUrl} alt={hospital.name} className="mt-3 max-h-48 w-full rounded-control object-cover" />
       )}
     </Card>
   );

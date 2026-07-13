@@ -1,6 +1,6 @@
 export function ErrorState({ message }: { message: string }) {
   return (
-    <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    <p role="alert" className="rounded-card bg-negative-bg px-4 py-3 text-sm text-negative">
       {message}
     </p>
   );

@@ -1,42 +1,66 @@
 @import "tailwindcss";
 
 /*
- * Design tokens (BP-2026-07-11-002) — fonte única de verdade do mapeamento
- * semântico de cores. Usar sempre estas classes Tailwind nativas; nunca
- * introduzir hex customizado fora daqui.
+ * Design tokens (v2 — tema macOS/iOS) — fonte única de verdade do
+ * mapeamento semântico de cores/forma. Usar sempre as classes geradas
+ * abaixo (bg-accent, rounded-card, shadow-card, etc.); nunca introduzir
+ * hex customizado fora daqui.
  *
- *   Ação primária / links / foco  -> blue-600   (hover: blue-700)
- *   Positivo (aprovado/preenchido) -> emerald-600
- *   Pendente / atenção            -> amber-600
- *   Negativo (erro/cancelado)     -> red-600 (reservado — nunca decorativo)
- *   Neutro (fundo/borda/texto)    -> slate-{50,200,400,600,900}
+ *   Ação primária / links / foco  -> accent (systemBlue #007AFF)
+ *   Positivo (aprovado/preenchido) -> positive (systemGreen)
+ *   Pendente / atenção            -> pending (systemOrange)
+ *   Negativo (erro/cancelado)     -> negative (systemRed) — reservado, nunca decorativo
+ *   Neutro (fundo/borda/texto)    -> background/surface/label/label-secondary/separator
  *
- * Tipografia: Inter (única família). h1: text-2xl font-semibold,
- * h2: text-xl font-semibold, corpo: text-sm/text-base,
- * texto secundário: text-sm text-slate-600.
+ * Tipografia: pilha de fonte de sistema (-apple-system primeiro — vira
+ * San Francisco de verdade em macOS/iOS; Segoe UI no Windows; Inter como
+ * fallback final). h1: text-2xl font-semibold, h2: text-xl font-semibold,
+ * corpo: text-sm/text-base, texto secundário: text-sm text-label-secondary.
  *
- * Forma: rounded-lg em cards/botões/inputs, shadow-sm em cards.
- * Container padrão de página autenticada: max-w-5xl mx-auto p-6 md:p-8.
+ * Forma: rounded-card (16px) em cards, rounded-control (12px) em
+ * botões/inputs, shadow-card (sombra difusa e suave, sem borda) —
+ * inspirado no "grouped content" do macOS/iOS: fundo cinza claro com
+ * superfícies brancas flutuando por cima.
  *
- * Sem dark mode automático: a paleta foi desenhada para fundo claro
- * (branco predominante, referência de sites de saúde — ver exec-arch.yaml
- * design_language); inverter via prefers-color-scheme quebraria o
- * contraste calculado para os componentes de estado (Badge/Card).
+ * Sem dark mode automático: mesma decisão de antes (ver exec-arch.yaml
+ * design_language) — contraste calculado só para o tema claro.
  */
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  --background: #f2f2f7;
+  --foreground: #1d1d1f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
+
+  --color-accent: #007aff;
+  --color-accent-hover: #0066d6;
+  --color-surface: #ffffff;
+  --color-label: #1d1d1f;
+  --color-label-secondary: #6e6e73;
+  --color-label-tertiary: #8e8e93;
+  --color-separator: #e5e5ea;
+
+  --color-positive: #34c759;
+  --color-positive-bg: #e9f9ee;
+  --color-pending: #ff9500;
+  --color-pending-bg: #fff3e0;
+  --color-negative: #ff3b30;
+  --color-negative-bg: #ffebe9;
+
+  --radius-card: 1rem;
+  --radius-control: 0.75rem;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", var(--font-sans), Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

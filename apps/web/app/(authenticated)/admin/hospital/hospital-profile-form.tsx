@@ -9,7 +9,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 
 const INPUT_CLASS =
-  "rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600";
+  "rounded-control border border-separator px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 interface EditableFields {
   city: string;
@@ -92,16 +92,16 @@ export function HospitalProfileForm() {
     <div>
       <Card className="mb-6">
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt className="font-medium text-slate-700">Nome</dt>
-          <dd className="text-slate-900">{profile.name}</dd>
-          <dt className="font-medium text-slate-700">Fuso horário</dt>
-          <dd className="text-slate-900">{profile.timezone}</dd>
+          <dt className="font-medium text-label-secondary">Nome</dt>
+          <dd className="text-label">{profile.name}</dd>
+          <dt className="font-medium text-label-secondary">Fuso horário</dt>
+          <dd className="text-label">{profile.timezone}</dd>
         </dl>
       </Card>
 
       <Card>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label htmlFor="city" className="flex flex-col gap-1 text-sm text-slate-700">
+          <label htmlFor="city" className="flex flex-col gap-1 text-sm text-label-secondary">
             Cidade
             <input
               id="city"
@@ -111,7 +111,7 @@ export function HospitalProfileForm() {
               className={INPUT_CLASS}
             />
           </label>
-          <label htmlFor="address" className="flex flex-col gap-1 text-sm text-slate-700">
+          <label htmlFor="address" className="flex flex-col gap-1 text-sm text-label-secondary">
             Endereço
             <input
               id="address"
@@ -121,7 +121,7 @@ export function HospitalProfileForm() {
               className={INPUT_CLASS}
             />
           </label>
-          <label htmlFor="description" className="flex flex-col gap-1 text-sm text-slate-700">
+          <label htmlFor="description" className="flex flex-col gap-1 text-sm text-label-secondary">
             Descrição
             <textarea
               id="description"
@@ -131,7 +131,7 @@ export function HospitalProfileForm() {
               className={INPUT_CLASS}
             />
           </label>
-          <label htmlFor="photoUrl" className="flex flex-col gap-1 text-sm text-slate-700">
+          <label htmlFor="photoUrl" className="flex flex-col gap-1 text-sm text-label-secondary">
             URL da foto
             <input
               id="photoUrl"
@@ -155,7 +155,7 @@ export function HospitalProfileForm() {
             ref={resultRef}
             tabIndex={-1}
             role="status"
-            className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+            className="mt-4 rounded-card bg-positive-bg px-4 py-3 text-sm text-positive"
           >
             Alterações salvas com sucesso.
           </div>

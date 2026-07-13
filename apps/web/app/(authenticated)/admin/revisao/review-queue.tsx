@@ -98,7 +98,7 @@ export function ReviewQueue() {
 
   return (
     <div>
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Credenciais pendentes</h2>
+      <h2 className="mb-3 text-sm font-semibold text-label">Credenciais pendentes</h2>
       {credentials === null ? (
         <LoadingState />
       ) : credentials.length === 0 ? (
@@ -114,12 +114,12 @@ export function ReviewQueue() {
                 <Card>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     <Badge variant="neutral">Credencial</Badge>
-                    <span className="text-sm font-medium text-slate-900">{c.doctorProfile.user.email}</span>
+                    <span className="text-sm font-medium text-label">{c.doctorProfile.user.email}</span>
                   </div>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-label-secondary">
                     CRM {c.doctorProfile.crmNumber} · {c.doctorProfile.specialties.join(", ")}
                   </div>
-                  <div className="text-xs text-slate-500">Enviado em {formatDateTime(c.createdAt)}</div>
+                  <div className="text-xs text-label-tertiary">Enviado em {formatDateTime(c.createdAt)}</div>
                   <ReviewActions
                     state={state}
                     onJustificationChange={(v) => setJustification(c.id, v)}
@@ -133,7 +133,7 @@ export function ReviewQueue() {
         </ul>
       )}
 
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Candidaturas pendentes</h2>
+      <h2 className="mb-3 text-sm font-semibold text-label">Candidaturas pendentes</h2>
       {applications === null ? (
         <LoadingState />
       ) : applications.length === 0 ? (
@@ -147,10 +147,10 @@ export function ReviewQueue() {
                 <Card>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     <Badge variant="neutral">Candidatura</Badge>
-                    <span className="text-sm font-medium text-slate-900">{a.doctorProfile.user.email}</span>
+                    <span className="text-sm font-medium text-label">{a.doctorProfile.user.email}</span>
                   </div>
-                  <div className="text-sm text-slate-600">CRM {a.doctorProfile.crmNumber}</div>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-label-secondary">CRM {a.doctorProfile.crmNumber}</div>
+                  <div className="text-sm text-label-secondary">
                     {a.shift.specialty} — {formatDateTime(a.shift.startsAt)} a {formatDateTime(a.shift.endsAt)} · {centsToReais(a.shift.valueCents)}
                   </div>
                   <ReviewActions
@@ -190,7 +190,7 @@ function ReviewActions({
           placeholder="Justificativa (obrigatória)"
           value={state.justification}
           onChange={(e) => onJustificationChange(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          className="w-full rounded-control border border-separator px-2.5 py-1.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
       </label>
       <Button type="button" size="sm" disabled={state.submitting} onClick={onApprove}>
