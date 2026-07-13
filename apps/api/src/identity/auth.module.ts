@@ -8,6 +8,7 @@ import { loadOidcConfig } from "./oidc-config";
 import { RealOidcProvider } from "./providers/real-oidc.provider";
 import { FakeOidcProvider } from "./providers/fake-oidc.provider";
 import type { OidcProvider } from "./interfaces/oidc-provider.interface";
+import { CredentialsModule } from "../credentials/credentials.module";
 
 /**
  * Módulo de autenticação OIDC. Seleciona o provedor real quando
@@ -30,6 +31,7 @@ import type { OidcProvider } from "./interfaces/oidc-provider.interface";
  * nunca um fallback silencioso.
  */
 @Module({
+  imports: [CredentialsModule],
   controllers: [AuthController, MeController],
   providers: [
     SessionService,

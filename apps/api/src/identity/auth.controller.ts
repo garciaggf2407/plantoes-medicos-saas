@@ -1,6 +1,6 @@
-import { Controller, Get, NotFoundException, Post, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { AuthService, OidcCallbackError } from "./auth.service";
+import { AuthService, OidcCallbackError, type RegisterDoctorInput, type RegisterHospitalInput } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
 
 @Controller("auth")
@@ -27,7 +27,15 @@ export class AuthController {
       res.redirect(302, this.auth.getPostLoginRedirectUrl());
     } catch (err) {
       if (err instanceof OidcCallbackError) {
-        res.status(400).json({ error: "authentication_failed", reason: err.message });
+        // Falha aqui é esperada sempre que um link de login é reusado
+        // (ex.: botão "voltar" do navegador reabrindo a página de
+        // dev-login depois de já ter autenticado -- code/state são de
+        // uso único). Devolver JSON cru deixava o operador num beco sem
+        // saída; redirecionar de volta pro app com o motivo na query
+        // deixa a home mostrar "Entrar" de novo em vez de travar.
+        const url = new URL(this.auth.getPostLoginRedirectUrl());
+        url.searchParams.set("auth_error", err.message);
+        res.redirect(302, url.toString());
         return;
       }
       throw err;
@@ -62,6 +70,40 @@ export class AuthController {
     if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
     const url = this.auth.buildDevLoginRedirect({ email, subject, redirectUri, state });
     res.redirect(302, url);
+  }
+
+  /**
+   * Superfície self-serve de cadastro (BP demo ao vivo) — 3 rotas
+   * abaixo, todas 404 fora do double local, mesmo padrão de
+   * isFakeProviderActive() das rotas dev-login acima. Numa implantação
+   * com OIDC real, cadastro é responsabilidade do provedor de
+   * identidade; estas rotas simplesmente não existem nesse mundo.
+   */
+  @Get("dev-accounts")
+  async devAccounts() {
+    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
+    return this.auth.listDevAccounts();
+  }
+
+  @Post("dev-quick-login")
+  async quickLogin(@Res() res: Response, @Body("email") email: string): Promise<void> {
+    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
+    const account = await this.auth.quickLogin(res, email);
+    res.status(200).json(account);
+  }
+
+  @Post("dev-register/doctor")
+  async registerDoctor(@Res() res: Response, @Body() body: RegisterDoctorInput): Promise<void> {
+    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
+    const account = await this.auth.registerDoctor(res, body);
+    res.status(201).json(account);
+  }
+
+  @Post("dev-register/hospital")
+  async registerHospital(@Res() res: Response, @Body() body: RegisterHospitalInput): Promise<void> {
+    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
+    const account = await this.auth.registerHospital(res, body);
+    res.status(201).json(account);
   }
 
   @Post("logout")

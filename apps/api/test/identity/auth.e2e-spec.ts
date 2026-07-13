@@ -85,19 +85,27 @@ describe("Auth (integração — login/callback/logout)", () => {
     expect(clearedSession).toMatch(/plantoes_session=;/);
   });
 
-  it("callback com erro do provedor retorna 400 sem lançar exceção não tratada", async () => {
+  // Reusar um link de callback (ex.: botão "voltar" do navegador reabrindo
+  // uma página de login já concluída) é o caso comum de OidcCallbackError,
+  // não uma exceção de sistema — por isso callback nunca mais devolve JSON
+  // cru sem saída, e sim redireciona de volta pro app com o motivo na
+  // query, para a home mostrar "Entrar" de novo em vez de travar.
+  it("callback com erro do provedor redireciona pro app com o motivo, sem lançar exceção não tratada", async () => {
     const res = await request(app.getHttpServer())
       .get("/auth/callback")
       .query({ error: "access_denied" });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("authentication_failed");
-    expect(res.body.reason).toContain("access_denied");
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin).toBe("http://localhost:3000");
+    expect(location.searchParams.get("auth_error")).toContain("access_denied");
   });
 
-  it("callback sem code/state retorna 400", async () => {
+  it("callback sem code/state redireciona pro app com o motivo", async () => {
     const res = await request(app.getHttpServer()).get("/auth/callback");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("authentication_failed");
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.origin).toBe("http://localhost:3000");
+    expect(location.searchParams.get("auth_error")).toBeTruthy();
   });
 });
