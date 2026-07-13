@@ -58,6 +58,12 @@ model Organization {
   /// Timezone IANA do hospital (ex.: America/Sao_Paulo), usada para
   /// converter os horários UTC armazenados em Shift.
   timezone  String
+  /// Perfil do hospital (BP-2026-07-12-001) -- todos opcionais para não
+  /// quebrar hospitais provisionados antes deste campo existir.
+  city        String?
+  address     String?
+  description String?  @db.Text
+  photoUrl    String?  @map("photo_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
