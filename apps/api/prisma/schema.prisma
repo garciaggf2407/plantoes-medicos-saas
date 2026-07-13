@@ -115,6 +115,10 @@ model DoctorProfile {
   crmNumber    String   @map("crm_number")
   specialties  String[]
   contactPhone String?  @map("contact_phone")
+  /// Cidade de pertencimento do médico (BP-2026-07-13-001) -- opcional,
+  /// usada como filtro padrão (trocável) na busca de plantões por cidade.
+  /// Validada contra Organization.city já cadastradas, nunca texto livre.
+  city         String?
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
