@@ -14,8 +14,15 @@ export interface SessionPayload {
 /**
  * Sessão via cookie assinado (HMAC-SHA256), nunca via token
  * armazenado no servidor em memória compartilhada. Cookie sempre
- * HttpOnly + SameSite=Lax; Secure é obrigatório exceto quando
- * COOKIE_SECURE=false (apenas para desenvolvimento local sobre HTTP).
+ * HttpOnly; Secure é obrigatório exceto quando COOKIE_SECURE=false
+ * (apenas para desenvolvimento local sobre HTTP). SameSite=None
+ * quando COOKIE_SECURE=true -- frontend e API rodam em domínios
+ * diferentes em produção (ex.: Vercel + Render), e fetch()
+ * cross-site com credentials:"include" nunca envia cookie
+ * SameSite=Lax/Strict. None exige Secure (só faz sentido sob HTTPS,
+ * daí acompanhar a mesma flag). Lax só em HTTP local, onde
+ * front/API ficam no mesmo site (localhost) mesmo em portas
+ * diferentes.
  */
 @Injectable()
 export class SessionService {
@@ -35,7 +42,7 @@ export class SessionService {
     res.cookie(SESSION_COOKIE_NAME, `${raw}.${signature}`, {
       httpOnly: true,
       secure: this.config.cookieSecure,
-      sameSite: "lax",
+      sameSite: this.config.cookieSecure ? "none" : "lax",
       maxAge: this.config.sessionTtlSeconds * 1000,
       path: "/",
     });
@@ -45,7 +52,7 @@ export class SessionService {
     res.clearCookie(SESSION_COOKIE_NAME, {
       httpOnly: true,
       secure: this.config.cookieSecure,
-      sameSite: "lax",
+      sameSite: this.config.cookieSecure ? "none" : "lax",
       path: "/",
     });
   }
