@@ -23,7 +23,7 @@ WORKDIR /repo
 # Copia primeiro só os manifests (cache de camada do Docker: só
 # reinstala dependências quando package.json/lockfile mudam, não a
 # cada mudança de código-fonte).
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
