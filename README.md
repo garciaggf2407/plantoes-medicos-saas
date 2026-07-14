@@ -4,6 +4,12 @@ SaaS multi-tenant de gestão de plantões médicos: hospitais publicam vagas, m�
 
 > Projeto pessoal de estudo/portfólio, construído do zero (schema, API, frontend, testes, observabilidade e deploy).
 
+## 🔗 Demo ao vivo
+
+**[plantoes-medicos-saas.vercel.app](https://plantoes-medicos-saas.vercel.app)**
+
+Cadastro self-serve (sem convite) — crie uma conta de hospital ou de médico direto na página de cadastro e explore os dois portais. Ambiente de demonstração: autenticação usa um provedor OIDC fake (nunca disponível numa implantação com OIDC real), e-mails de notificação vão só pro console, não pra caixa de entrada.
+
 ## Índice
 
 - [Visão geral](#visão-geral)
