@@ -142,6 +142,9 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
       host: redisUrl.hostname,
       port: Number(redisUrl.port || 6379),
       password: redisUrl.password || undefined,
+      // rediss:// (Upstash, ElastiCache, etc. em produção) exige TLS;
+      // redis:// puro (Docker Compose local) não deve setar tls.
+      tls: redisUrl.protocol === "rediss:" ? {} : undefined,
       maxRetriesPerRequest: null,
     };
 
