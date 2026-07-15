@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Post, Query, Req, Res } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { AuthService, OidcCallbackError, type RegisterDoctorInput, type RegisterHospitalInput } from "./auth.service";
+import { AuthService, OidcCallbackError, type RegisterDoctorInput } from "./auth.service";
 import { Public } from "./decorators/public.decorator";
 
 @Controller("auth")
@@ -73,36 +73,17 @@ export class AuthController {
   }
 
   /**
-   * Superfície self-serve de cadastro (BP demo ao vivo) — 3 rotas
-   * abaixo, todas 404 fora do double local, mesmo padrão de
-   * isFakeProviderActive() das rotas dev-login acima. Numa implantação
-   * com OIDC real, cadastro é responsabilidade do provedor de
-   * identidade; estas rotas simplesmente não existem nesse mundo.
+   * Auto-cadastro de médico (BP demo ao vivo) — 404 fora do double
+   * local, mesmo padrão de isFakeProviderActive() das rotas dev-login
+   * acima. Numa implantação com OIDC real, esta rota não existe; o
+   * primeiro login já auto-provisiona DOCTOR (ver
+   * resolveOrProvisionUser), e o perfil é completado depois via
+   * PUT /doctors/me/profile.
    */
-  @Get("dev-accounts")
-  async devAccounts() {
-    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
-    return this.auth.listDevAccounts();
-  }
-
-  @Post("dev-quick-login")
-  async quickLogin(@Res() res: Response, @Body("email") email: string): Promise<void> {
-    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
-    const account = await this.auth.quickLogin(res, email);
-    res.status(200).json(account);
-  }
-
   @Post("dev-register/doctor")
   async registerDoctor(@Res() res: Response, @Body() body: RegisterDoctorInput): Promise<void> {
     if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
     const account = await this.auth.registerDoctor(res, body);
-    res.status(201).json(account);
-  }
-
-  @Post("dev-register/hospital")
-  async registerHospital(@Res() res: Response, @Body() body: RegisterHospitalInput): Promise<void> {
-    if (!this.auth.isFakeProviderActive()) throw new NotFoundException();
-    const account = await this.auth.registerHospital(res, body);
     res.status(201).json(account);
   }
 

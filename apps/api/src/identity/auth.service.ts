@@ -19,13 +19,6 @@ export interface RegisterDoctorInput extends DoctorProfileInput {
   email: string;
 }
 
-export interface RegisterHospitalInput {
-  hospitalName: string;
-  city: string;
-  address?: string;
-  adminEmail: string;
-}
-
 export interface DevAccountSummary {
   email: string;
   role: UserRole;
@@ -208,63 +201,6 @@ export class AuthService {
   }
 
   /**
-   * Contas existentes para a tela /login nativa do site (BP self-serve
-   * demo). Mesma ideia de renderDevLoginPage, mas em JSON e sem se
-   * limitar a "uma por papel" -- e sem nunca vazar oidcSubject (só
-   * usado internamente para montar o "code" do double, nunca exposto).
-   * Gateada por isFakeProviderActive() no controller, como toda rota
-   * deste arquivo que assume o double local.
-   */
-  async listDevAccounts(): Promise<DevAccountSummary[]> {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: { organization: { select: { name: true } } },
-    });
-    // Contas de fixture de teste automatizado (telemetry-<uuid>@...,
-    // e2e-<cenario>-<uuid>@..., doctor-cmd-<uuid>@...) têm sempre um
-    // UUID no local-part -- filtro simples e robusto pra nunca vazar
-    // esse ruído na tela de login/demo, sem depender de manter uma
-    // lista de prefixos conhecidos em sincronia com cada suíte de teste.
-    const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    return users
-      .filter((u) => !UUID_RE.test(u.email))
-      .slice(0, 20)
-      .map((u) => ({ email: u.email, role: u.role, organizationName: u.organization?.name ?? null }));
-  }
-
-  /**
-   * Login direto pra uma conta EXISTENTE (double local) -- usado pela
-   * tela /login nativa do site. Não repete a dança de redirects
-   * OIDC/pending-cookie (state/nonce/PKCE): aquilo protege um handshake
-   * de redirect entre origens contra CSRF, o que não existe aqui (é uma
-   * chamada POST same-purpose direta, sem terceiro envolvido) -- essa
-   * cerimônia continua intacta e sem mudança nenhuma no fluxo antigo
-   * (/auth/login -> /auth/dev-login -> /auth/dev-login/submit ->
-   * /auth/callback), usado pelo botão "Entrar" do AppShell e pelos
-   * testes e2e existentes. Esta rota é só um atalho adicional.
-   */
-  async quickLogin(res: Response, email: string): Promise<DevAccountSummary> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-      include: { organization: { select: { name: true } } },
-    });
-    if (!user) {
-      throw new BadRequestException("conta não encontrada — cadastre-se primeiro");
-    }
-
-    this.sessions.issue(res, {
-      subject: user.oidcSubject,
-      email: user.email,
-      exp: Math.floor(Date.now() / 1000) + this.config.sessionTtlSeconds,
-    });
-    telemetry.loginCounter.add(1, { role: user.role });
-    logEvent("auth.quick_login", { role: user.role });
-
-    return { email: user.email, role: user.role, organizationName: user.organization?.name ?? null };
-  }
-
-  /**
    * Cadastro self-serve de médico (double local): cria a conta e já
    * grava o perfil (CRM/especialidades/cidade) num passo só, em vez de
    * deixar o médico cair pós-login num perfil vazio (gap real
@@ -303,74 +239,6 @@ export class AuthService {
     logEvent("auth.register_doctor", { role: "DOCTOR" });
 
     return { email, role: UserRole.DOCTOR, organizationName: null };
-  }
-
-  /**
-   * Cadastro self-serve de hospital (double local): cria a Organization
-   * E o primeiro HOSPITAL_ADMIN dela num passo só, sem convite pendente
-   * -- ao contrário de ProvisionOrganizationUseCase (restrito a
-   * SUPERADMIN, cria oidcSubject "pending:*" pra reconciliar depois).
-   * Aqui o subject já nasce real e a sessão é emitida na hora, porque o
-   * objetivo é uma demo ao vivo onde a plateia se cadastra e já entra
-   * logada como admin do hospital que acabou de criar. Nunca disponível
-   * fora do double local (ver isFakeProviderActive() no controller) --
-   * numa implantação com OIDC real, hospital_admin continua exigindo
-   * convite, sem exceção.
-   */
-  async registerHospital(res: Response, input: RegisterHospitalInput): Promise<DevAccountSummary> {
-    const adminEmail = input.adminEmail.trim().toLowerCase();
-    if (!EMAIL_PATTERN.test(adminEmail)) {
-      throw new BadRequestException("email do administrador inválido");
-    }
-    const hospitalName = input.hospitalName.trim();
-    if (hospitalName.length < 2) {
-      throw new BadRequestException("nome do hospital deve ter ao menos 2 caracteres");
-    }
-    const city = input.city.trim();
-    if (city.length === 0) {
-      throw new BadRequestException("cidade é obrigatória");
-    }
-    const existing = await this.prisma.user.findUnique({ where: { email: adminEmail } });
-    if (existing) {
-      throw new BadRequestException("já_existe_conta_com_este_email");
-    }
-
-    const subject = `dev-admin-${randomUUID()}`;
-    const { organization, adminUser } = await this.prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.create({
-        data: {
-          name: hospitalName,
-          timezone: "America/Sao_Paulo",
-          city,
-          address: input.address?.trim() || null,
-        },
-      });
-      await tx.$executeRaw`SELECT set_config('app.current_organization_id', ${organization.id}, true)`;
-      const adminUser = await tx.user.create({
-        data: { oidcSubject: subject, email: adminEmail, role: UserRole.HOSPITAL_ADMIN, organizationId: organization.id },
-      });
-      await tx.auditLog.create({
-        data: {
-          organizationId: organization.id,
-          actorUserId: adminUser.id,
-          action: "organization.self_registered",
-          targetType: "Organization",
-          targetId: organization.id,
-          justification: `Hospital "${hospitalName}" auto-cadastrado por ${adminEmail} (double local)`,
-        },
-      });
-      return { organization, adminUser };
-    });
-
-    this.sessions.issue(res, {
-      subject,
-      email: adminEmail,
-      exp: Math.floor(Date.now() / 1000) + this.config.sessionTtlSeconds,
-    });
-    telemetry.loginCounter.add(1, { role: "HOSPITAL_ADMIN" });
-    logEvent("auth.register_hospital", { role: "HOSPITAL_ADMIN" });
-
-    return { email: adminUser.email, role: UserRole.HOSPITAL_ADMIN, organizationName: organization.name };
   }
 
   /**
