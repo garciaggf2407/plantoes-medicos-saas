@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMe } from "@/lib/use-me";
+import { apiFetch } from "@/lib/api";
 import { AppShell } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,9 +24,45 @@ const NAV_BY_ROLE: Record<string, Array<{ href: string; label: string }>> = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const state = useMe();
   const role = state.status === "ready" ? state.me.role : null;
   const items = role ? NAV_BY_ROLE[role] : undefined;
+  const [profileChecked, setProfileChecked] = useState(false);
+
+  // Login real (OIDC) auto-provisiona DOCTOR sem CRM/especialidades
+  // (ver resolveOrProvisionUser) -- sem isso, o médico cai na home sem
+  // conseguir buscar plantões e sem saber por quê.
+  useEffect(() => {
+    if (role !== "DOCTOR") {
+      setProfileChecked(true);
+      return;
+    }
+    let cancelled = false;
+    apiFetch<{ crmNumber: string } | null>("/doctors/me/profile")
+      .then((profile) => {
+        if (cancelled) return;
+        if (profile === null) {
+          router.replace("/medico/completar-perfil");
+          return;
+        }
+        setProfileChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) setProfileChecked(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [role, router]);
+
+  if (role === "DOCTOR" && !profileChecked) {
+    return (
+      <AppShell>
+        <PageHeader title="Bem-vindo(a)" description="Escolha para onde ir." />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
