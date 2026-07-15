@@ -9,6 +9,11 @@ import {
   type ProvisionOrganizationInput,
   type ProvisionOrganizationResult,
 } from "./provision-organization.use-case";
+import {
+  InviteHospitalAdminUseCase,
+  type InviteHospitalAdminInput,
+  type InviteHospitalAdminResult,
+} from "./invite-hospital-admin.use-case";
 import { GetOrganizationProfileUseCase } from "./get-organization-profile.use-case";
 import {
   UpdateOrganizationProfileUseCase,
@@ -27,6 +32,7 @@ import { ListCitiesUseCase } from "./list-cities.use-case";
 export class OrganizationsController {
   constructor(
     private readonly provisionOrganization: ProvisionOrganizationUseCase,
+    private readonly inviteHospitalAdmin: InviteHospitalAdminUseCase,
     private readonly getOrganizationProfile: GetOrganizationProfileUseCase,
     private readonly updateOrganizationProfile: UpdateOrganizationProfileUseCase,
     private readonly listOrganizations: ListOrganizationsUseCase,
@@ -41,6 +47,22 @@ export class OrganizationsController {
     @Body() body: ProvisionOrganizationInput,
   ): Promise<ProvisionOrganizationResult> {
     return this.provisionOrganization.execute(actor, body);
+  }
+
+  /**
+   * Convite de admin para um hospital JÁ EXISTENTE (ex.: semeado via
+   * seed-cnes-hospitals.mjs, sem admin nenhum). Ver
+   * InviteHospitalAdminUseCase -- distinto de provision() acima, que
+   * sempre cria organização nova junto com o convite.
+   */
+  @Post("organizations/:id/admins")
+  @Roles(UserRole.SUPERADMIN)
+  async inviteAdmin(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() body: InviteHospitalAdminInput,
+  ): Promise<InviteHospitalAdminResult> {
+    return this.inviteHospitalAdmin.execute(actor, id, body);
   }
 
   /**

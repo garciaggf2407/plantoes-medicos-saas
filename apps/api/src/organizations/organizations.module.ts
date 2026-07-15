@@ -1,6 +1,7 @@
 import { Global, Module } from "@nestjs/common";
 import { TenantContextService } from "./tenant-context";
 import { ProvisionOrganizationUseCase } from "./provision-organization.use-case";
+import { InviteHospitalAdminUseCase } from "./invite-hospital-admin.use-case";
 import { GetOrganizationProfileUseCase } from "./get-organization-profile.use-case";
 import { UpdateOrganizationProfileUseCase } from "./update-organization-profile.use-case";
 import { ListOrganizationsUseCase } from "./list-organizations.use-case";
@@ -14,6 +15,7 @@ import { OrganizationsController } from "./organizations.controller";
   providers: [
     TenantContextService,
     ProvisionOrganizationUseCase,
+    InviteHospitalAdminUseCase,
     GetOrganizationProfileUseCase,
     UpdateOrganizationProfileUseCase,
     ListOrganizationsUseCase,
