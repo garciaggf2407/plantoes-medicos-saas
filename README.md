@@ -8,7 +8,7 @@ SaaS multi-tenant de gestão de plantões médicos: hospitais publicam vagas, m�
 
 **[plantoes-medicos-saas.vercel.app](https://plantoes-medicos-saas.vercel.app)**
 
-Cadastro self-serve (sem convite) — crie uma conta de hospital ou de médico direto na página de cadastro e explore os dois portais. Ambiente de demonstração: autenticação usa um provedor OIDC fake (nunca disponível numa implantação com OIDC real), e-mails de notificação vão só pro console, não pra caixa de entrada.
+Cadastro self-serve de médico (sem convite) — crie uma conta direto na página de cadastro e explore o portal do médico. Hospitais não são mais auto-cadastráveis: são semeados a partir do CNES/DataSUS (rede pública e privada — CNES é cadastro obrigatório para qualquer estabelecimento de saúde no Brasil) e o admin de cada um é convidado pelo superadmin, o mesmo fluxo de produção. Login é OIDC de verdade; em ambiente sem credenciais de provedor configuradas, cai automaticamente num double local — e-mails de notificação vão só pro console, não pra caixa de entrada.
 
 ## Índice
 
@@ -121,6 +121,6 @@ reports/   Relatórios de regressão E2E + screenshots
 ## Roadmap
 
 - [ ] Fluxo de envio/reenvio de credencial (CRM) pelo médico via UI — o backend já suporta, falta a tela
-- [ ] Login OIDC de produção (hoje só o double de dev/demo tem UI)
+- [ ] Ativar credenciais reais de provedor OIDC (Google) na demo pública — código já pronto (`RealOidcProvider`, genérico via discovery), falta só configurar `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` no ambiente
 - [ ] Tela de notificações in-app (backend pronto — outbox + worker + email)
-- [ ] Provisionamento de hospital via UI de superadmin (hoje só API)
+- [ ] Provisionamento de hospital e convite de admin para hospital *já existente* via UI de superadmin (backend pronto nos dois casos — `POST /organizations` e `POST /organizations/:id/admins` — falta só a tela; a leitura em `organization-detail.tsx` continua deliberadamente só-leitura, ver comentário no arquivo)
